@@ -20,6 +20,7 @@ import {
     Zap,
     SlidersHorizontal,
     AlertTriangle,
+    BarChart3,
 } from 'lucide-react';
 import { mockCandidates } from '../../../mock/data';
 import { Link } from 'react-router-dom';
@@ -36,7 +37,6 @@ const uploadToCloudinary = async (file) => {
     const timestamp = Math.round(new Date().getTime() / 1000);
     const signatureString = `timestamp=${timestamp}${apiSecret}`;
 
-    // Mã hóa SHA-1 sử dụng Native API của trình duyệt
     const msgBuffer = new TextEncoder().encode(signatureString);
     const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -101,7 +101,7 @@ const SearchCandidates = () => {
         weightEdu: 10,
         weightSoft: 10,
     });
-    const [useDefaultWeights, setUseDefaultWeights] = useState(true); // Mặc định gửi null
+    const [useDefaultWeights, setUseDefaultWeights] = useState(true);
 
     const [isScanning, setIsScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
@@ -143,7 +143,6 @@ const SearchCandidates = () => {
         setErrorLog(null);
 
         try {
-            // 1. Upload Cloudinary lấy URLs
             let uploadedJdUrl = '';
             if (jdType === 'file' && jdFile) {
                 uploadedJdUrl = await uploadToCloudinary(jdFile);
@@ -153,7 +152,6 @@ const SearchCandidates = () => {
                 uploadedCvUrls.push(await uploadToCloudinary(file));
             }
 
-            // 2. Format AI Settings (Null hoặc 0.x)
             const aiSettingsPayload = useDefaultWeights
                 ? {
                       weightExp: null,
@@ -172,7 +170,6 @@ const SearchCandidates = () => {
                       weightSoft: aiWeights.weightSoft / 100,
                   };
 
-            // 3. Format Payload gửi API
             const payload = {
                 cvUrls: uploadedCvUrls,
                 jdUrl: jdType === 'file' ? uploadedJdUrl : '',
@@ -182,27 +179,22 @@ const SearchCandidates = () => {
                 aiSettings: aiSettingsPayload,
             };
 
-            console.log('PAYLOAD GỬI ĐI:', JSON.stringify(payload, null, 2));
-
-            // 4. Gọi API
             const response = await applicationService.quickMatch(payload);
             setScanResults(response);
         } catch (error) {
             console.error('Lỗi khi quét AI:', error);
-
             let errorTitle = 'Lỗi hệ thống';
             let errorDetails = error.message;
 
             if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-                errorTitle = 'Lỗi kết nối mạng (Network Error / Connection Refused)';
-                errorDetails =
-                    'Frontend không thể kết nối đến Backend. Vui lòng kiểm tra xem Backend đã khởi động chưa, có đúng IP/Port không.';
+                errorTitle = 'Lỗi kết nối mạng (Network Error)';
+                errorDetails = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại.';
             } else if (error.response) {
-                errorTitle = `Lỗi từ Server (Status: ${error.response.status})`;
+                errorTitle = `Lỗi từ Server (${error.response.status})`;
                 errorDetails =
                     typeof error.response.data === 'object'
                         ? JSON.stringify(error.response.data, null, 2)
-                        : error.response.data || 'Không có thông báo chi tiết từ server.';
+                        : error.response.data || 'Không rõ nguyên nhân.';
             }
 
             setErrorLog({ title: errorTitle, details: errorDetails, raw: error.toString() });
@@ -214,410 +206,454 @@ const SearchCandidates = () => {
     const renderRecommendationBadge = (rec) => {
         if (rec === 'LƯU HỒ SƠ' || rec === 'ACCEPTED' || rec === 'PASS') {
             return (
-                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
+                <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">
                     ✅ {rec}
                 </span>
             );
         }
         return (
-            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+            <span className="bg-rose-50 text-rose-700 px-3 py-1 rounded-full text-xs font-bold border border-rose-200">
                 ❌ {rec}
             </span>
         );
     };
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto font-sans pb-10">
-            {/* HEADER & TABS */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-20">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="bg-slate-50 min-h-screen text-slate-800 font-sans relative overflow-x-hidden pb-12">
+            <div className="max-w-[1400px] mx-auto px-6 py-8">
+                {/* Header & Segmented Control */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <Sparkles className="text-blue-600" size={28} /> Hệ Sinh Thái AI Tìm Kiếm Ứng Viên
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                            Tìm kiếm Ứng viên
                         </h1>
-                        <p className="text-gray-500 mt-1">
-                            Sử dụng sức mạnh của Machine Learning và LLM để tự động hóa phễu tuyển dụng.
+                        <p className="text-slate-500 font-medium mt-2">
+                            Khám phá và đánh giá nhân tài với độ chính xác cao.
                         </p>
                     </div>
-                </div>
-                <div className="flex space-x-2 border-b border-gray-100 pb-0">
-                    <button
-                        onClick={() => setActiveTab('auto_match')}
-                        className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'auto_match' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <Zap size={18} /> Gợi ý Tự động (Auto Match)
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('ai_scanner')}
-                        className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'ai_scanner' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <Bot size={18} /> AI CV Scanner (Quét Nhanh)
-                    </button>
-                </div>
-            </div>
 
-            {/* TAB 1: AUTO MATCH */}
-            {activeTab === 'auto_match' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Tìm theo tên, kỹ năng..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition shadow-sm"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex gap-3">
-                            <select
-                                className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:border-blue-500 cursor-pointer text-gray-700 font-medium shadow-sm"
-                                value={filterScore}
-                                onChange={(e) => setFilterScore(e.target.value)}
-                            >
-                                <option value="all">Mọi độ phù hợp</option>
-                                <option value="high">Phù hợp cao (80%+)</option>
-                                <option value="medium">Phù hợp khá (50-80%)</option>
-                            </select>
-                            <button className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition flex items-center gap-2 font-medium shadow-sm">
-                                <Filter size={18} /> Lọc thêm
-                            </button>
-                        </div>
+                    {/* Flat Segmented Control */}
+                    <div className="bg-slate-200/60 rounded-full p-1.5 flex items-center self-start">
+                        <button
+                            onClick={() => setActiveTab('auto_match')}
+                            className={`text-sm font-bold px-6 py-2.5 rounded-full transition-all duration-200 flex items-center gap-2 ${
+                                activeTab === 'auto_match'
+                                    ? 'bg-white text-blue-700 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-300/50'
+                            }`}
+                        >
+                            <Zap size={16} className={activeTab === 'auto_match' ? 'text-amber-500' : ''} /> Gợi ý Tự
+                            động
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('ai_scanner')}
+                            className={`text-sm font-bold px-6 py-2.5 rounded-full transition-all duration-200 flex items-center gap-2 ${
+                                activeTab === 'ai_scanner'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-300/50'
+                            }`}
+                        >
+                            <Bot size={16} className={activeTab === 'ai_scanner' ? 'text-white' : 'text-slate-400'} />{' '}
+                            AI Scanner
+                        </button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredCandidates.length > 0 ? (
-                            filteredCandidates.map((candidate) => (
-                                <div
-                                    key={candidate.id}
-                                    className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col"
+                </div>
+
+                {/* ========================================================
+                    TAB 1: AUTO MATCH
+                ======================================================== */}
+                {activeTab === 'auto_match' && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                        {/* Search & Filter Bar */}
+                        <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex flex-col md:flex-row gap-4">
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                <input
+                                    type="text"
+                                    placeholder="Tìm theo tên, kỹ năng..."
+                                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition font-medium text-slate-900 placeholder:text-slate-400"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <select
+                                    className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer text-slate-700 font-bold transition"
+                                    value={filterScore}
+                                    onChange={(e) => setFilterScore(e.target.value)}
                                 >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex gap-4">
-                                            <img
-                                                src={candidate.avatar}
-                                                alt={candidate.name}
-                                                className="w-14 h-14 rounded-full border border-gray-200 shadow-sm"
-                                            />
-                                            <div>
-                                                <h3 className="font-bold text-lg text-gray-900 leading-tight">
-                                                    {candidate.name}
-                                                </h3>
-                                                <p className="text-blue-600 font-medium text-sm mt-0.5">
-                                                    {candidate.title}
-                                                </p>
+                                    <option value="all">Mọi độ phù hợp</option>
+                                    <option value="high">Phù hợp cao (80%+)</option>
+                                    <option value="medium">Phù hợp khá (50-80%)</option>
+                                </select>
+                                <button className="px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition flex items-center gap-2 font-bold">
+                                    <Filter size={18} /> Lọc
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Candidates Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredCandidates.length > 0 ? (
+                                filteredCandidates.map((candidate) => (
+                                    <div
+                                        key={candidate.id}
+                                        className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col"
+                                    >
+                                        <div className="flex justify-between items-start mb-5">
+                                            <div className="flex gap-4 items-center">
+                                                <img
+                                                    src={candidate.avatar}
+                                                    alt={candidate.name}
+                                                    className="w-14 h-14 rounded-full border border-slate-100 shadow-sm object-cover"
+                                                />
+                                                <div>
+                                                    <h3 className="font-extrabold text-xl text-slate-900 leading-tight">
+                                                        {candidate.name}
+                                                    </h3>
+                                                    <p className="text-blue-600 font-medium text-sm mt-0.5">
+                                                        {candidate.title}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl font-black text-lg border border-blue-100 flex flex-col items-center leading-none">
+                                                <span>{candidate.matchScore}%</span>
                                             </div>
                                         </div>
-                                        <div
-                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-black text-sm border ${candidate.matchScore >= 80 ? 'bg-green-50 text-green-700 border-green-200' : candidate.matchScore >= 50 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
-                                        >
-                                            <Sparkles size={14} /> {candidate.matchScore}%
+
+                                        <div className="flex flex-wrap gap-4 text-xs text-slate-500 font-semibold mb-5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <span className="flex items-center gap-1.5">
+                                                <MapPin size={14} className="text-slate-400" /> {candidate.location}
+                                            </span>
+                                            <span className="flex items-center gap-1.5">
+                                                <Briefcase size={14} className="text-slate-400" /> KN: {candidate.exp}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2 mb-6">
+                                            {candidate.skills.map((skill, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="bg-white border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold"
+                                                >
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                        </div>
+
+                                        <div className="mt-auto flex gap-3 pt-4 border-t border-slate-100">
+                                            <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl transition">
+                                                <FileText size={18} /> Hồ sơ
+                                            </button>
+                                            <Link
+                                                to="/chat"
+                                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm"
+                                            >
+                                                <MessageSquare size={18} /> Nhắn tin
+                                            </Link>
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-4 text-xs text-gray-500 font-medium mb-4">
-                                        <span className="flex items-center gap-1">
-                                            <MapPin size={14} /> {candidate.location}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <Briefcase size={14} /> Kinh nghiệm: {candidate.exp}
-                                        </span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mb-6">
-                                        {candidate.skills.map((skill, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="bg-gray-50 border border-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-md font-medium"
-                                            >
-                                                {skill}
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <div className="mt-auto bg-blue-50/50 p-3 rounded-xl border border-blue-100 mb-4">
-                                        <p className="text-xs text-gray-500 mb-1">Gợi ý cho vị trí:</p>
-                                        <p className="font-semibold text-sm text-blue-800 truncate">
-                                            {candidate.matchedJob}
-                                        </p>
-                                    </div>
-                                    <div className="flex gap-3 mt-auto pt-4 border-t border-gray-50">
-                                        <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-xl transition">
-                                            <FileText size={18} /> Xem CV
-                                        </button>
-                                        <Link
-                                            to="/chat"
-                                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition shadow-sm"
-                                        >
-                                            <MessageSquare size={18} /> Nhắn tin
-                                        </Link>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="col-span-full py-20 text-center bg-white rounded-2xl border border-dashed border-gray-200">
-                                <Search size={40} className="mx-auto text-gray-300 mb-3" />
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">Không tìm thấy ứng viên</h3>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* TAB 2: AI CV SCANNER */}
-            {activeTab === 'ai_scanner' && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col lg:flex-row gap-6">
-                    {/* CỘT TRÁI: FORM INPUT */}
-                    <div className="w-full lg:w-1/3 flex flex-col gap-6">
-                        {/* 1. Nhập JD */}
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                                <Briefcase size={18} className="text-purple-600" /> 1. Yêu cầu (JD)
-                            </h3>
-                            <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setJdType('text')}
-                                    className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${jdType === 'text' ? 'bg-white shadow text-purple-700' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    Nhập Text
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setJdType('file')}
-                                    className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${jdType === 'file' ? 'bg-white shadow text-purple-700' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    Tải Ảnh/File
-                                </button>
-                            </div>
-                            {jdType === 'text' ? (
-                                <textarea
-                                    value={jdText}
-                                    onChange={(e) => setJdText(e.target.value)}
-                                    rows="5"
-                                    placeholder="Dán nội dung Job Description vào đây..."
-                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-purple-500 text-sm resize-none"
-                                />
+                                ))
                             ) : (
-                                <div>
-                                    <input
-                                        type="file"
-                                        accept=".png,.jpg,.jpeg,.pdf"
-                                        className="hidden"
-                                        ref={jdFileInputRef}
-                                        onChange={(e) => setJdFile(e.target.files[0])}
-                                    />
-                                    <div
-                                        onClick={() => jdFileInputRef.current?.click()}
-                                        className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition ${jdFile ? 'border-purple-400 bg-purple-50' : 'border-gray-300 hover:bg-gray-50 bg-white'}`}
-                                    >
-                                        {jdFile ? (
-                                            <p className="text-sm font-bold text-purple-700 truncate w-full text-center">
-                                                {jdFile.name}
-                                            </p>
+                                <div className="col-span-full py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-300 shadow-sm">
+                                    <Search size={48} className="mx-auto text-slate-300 mb-4" />
+                                    <h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy ứng viên</h3>
+                                    <p className="text-slate-500">Hãy thử thay đổi từ khóa hoặc bộ lọc.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ========================================================
+                    TAB 2: AI SCANNER
+                ======================================================== */}
+                {activeTab === 'ai_scanner' && (
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* ── CỘT TRÁI: CONFIGURATION ── */}
+                        <div className="xl:col-span-4 flex flex-col gap-6">
+                            <div className="bg-white rounded-[1.5rem] p-6 border border-slate-200 shadow-sm flex flex-col gap-6">
+                                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
+                                        <Bot className="text-white" size={20} />
+                                    </div>
+                                    <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                                        Cấu hình Quét
+                                    </h2>
+                                </div>
+
+                                {/* JD Input */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-sm font-bold text-slate-800">Mô tả công việc (JD)</label>
+                                        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                            <button
+                                                onClick={() => setJdType('text')}
+                                                className={`text-xs font-bold px-3 py-1 rounded-md transition-all ${jdType === 'text' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200/50'}`}
+                                            >
+                                                Text
+                                            </button>
+                                            <button
+                                                onClick={() => setJdType('file')}
+                                                className={`text-xs font-bold px-3 py-1 rounded-md transition-all ${jdType === 'file' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200/50'}`}
+                                            >
+                                                File
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-1 border border-slate-200 shadow-inner">
+                                        {jdType === 'text' ? (
+                                            <textarea
+                                                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium text-slate-800 resize-none h-32 placeholder:text-slate-400 p-3 outline-none"
+                                                placeholder="Dán nội dung JD vào đây để làm tiêu chuẩn quét..."
+                                                value={jdText}
+                                                onChange={(e) => setJdText(e.target.value)}
+                                            ></textarea>
                                         ) : (
-                                            <>
-                                                <UploadCloud size={32} className="text-gray-400 mb-2" />
-                                                <p className="text-sm font-bold text-gray-600">Nhấn để tải Ảnh/PDF</p>
-                                            </>
+                                            <div
+                                                onClick={() => jdFileInputRef.current?.click()}
+                                                className={`h-32 m-2 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${jdFile ? 'border-blue-400 bg-blue-50' : 'border-slate-300 hover:bg-white bg-transparent'}`}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    accept=".png,.jpg,.jpeg,.pdf"
+                                                    className="hidden"
+                                                    ref={jdFileInputRef}
+                                                    onChange={(e) => setJdFile(e.target.files[0])}
+                                                />
+                                                {jdFile ? (
+                                                    <p className="text-sm font-bold text-blue-700 truncate px-4 text-center">
+                                                        {jdFile.name}
+                                                    </p>
+                                                ) : (
+                                                    <>
+                                                        <UploadCloud size={28} className="text-slate-400 mb-2" />
+                                                        <p className="text-xs font-bold text-slate-500">
+                                                            Tải Ảnh/PDF lên
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                            )}
-                        </div>
 
-                        {/* 2. Upload CVs */}
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                                    <FileText size={18} className="text-blue-600" /> 2. Tập CV (PDF)
-                                </h3>
-                                <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
-                                    {cvFiles.length} CVs
-                                </span>
-                            </div>
-                            <input
-                                type="file"
-                                multiple
-                                accept=".pdf"
-                                className="hidden"
-                                ref={cvFileInputRef}
-                                onChange={handleCvFilesChange}
-                            />
-                            <div
-                                onClick={() => cvFileInputRef.current?.click()}
-                                className="border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 bg-gray-50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition mb-4"
-                            >
-                                <UploadCloud size={32} className="text-gray-400 mb-2" />
-                                <p className="text-sm font-bold text-gray-600">Tải lên hàng loạt CV</p>
-                            </div>
-                            {cvFiles.length > 0 && (
-                                <div className="max-h-[150px] overflow-y-auto space-y-2 pr-1">
-                                    {cvFiles.map((file, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="flex items-center justify-between bg-white border border-gray-100 p-2.5 rounded-lg shadow-sm"
-                                        >
-                                            <span className="text-xs font-medium text-gray-700 truncate mr-2">
-                                                {file.name}
-                                            </span>
-                                            <button
-                                                onClick={() => removeCvFile(idx)}
-                                                className="text-red-400 hover:text-red-600 p-1"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* 3. Custom Rules */}
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                            <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-3">
-                                <AlertCircle size={18} className="text-orange-500" /> 3. Luật riêng (Tùy chọn)
-                            </h3>
-                            <textarea
-                                value={customRules}
-                                onChange={(e) => setCustomRules(e.target.value)}
-                                rows="2"
-                                placeholder="VD: Bắt buộc tiếng Anh IELTS 6.5+"
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-orange-500 text-sm resize-none"
-                            />
-                        </div>
-
-                        {/* 4. AI SETTINGS */}
-                        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                            <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-                                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                                    <SlidersHorizontal size={18} className="text-indigo-600" /> 4. Trọng số AI
-                                </h3>
-                                {!useDefaultWeights && (
-                                    <span
-                                        className={`text-xs font-bold px-2.5 py-1 rounded-md border ${totalWeight === 100 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
-                                    >
-                                        Tổng: {totalWeight}/100
-                                    </span>
-                                )}
-                            </div>
-
-                            <label className="flex items-center gap-2 mb-4 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
-                                    checked={useDefaultWeights}
-                                    onChange={(e) => setUseDefaultWeights(e.target.checked)}
-                                />
-                                <span className="text-sm font-medium text-gray-700">
-                                    Dùng cấu hình mặc định (Gửi null)
-                                </span>
-                            </label>
-
-                            <div
-                                className={`space-y-4 transition-opacity ${useDefaultWeights ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}
-                            >
-                                {Object.entries(aiWeights).map(([key, value]) => (
-                                    <div key={key} className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-xs font-semibold">
-                                            <span className="text-gray-600">{AI_WEIGHT_LABELS[key]}</span>
-                                            <span className="text-indigo-600">
-                                                {value}% (Gửi API: {value / 100})
-                                            </span>
-                                        </div>
+                                {/* Custom Rules */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-sm font-bold text-slate-800">
+                                        Luật tùy chỉnh (Tùy chọn)
+                                    </label>
+                                    <div className="bg-slate-50 rounded-xl p-1 border border-slate-200 shadow-inner">
                                         <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={value}
-                                            onChange={(e) => handleWeightChange(key, e.target.value)}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-700 transition"
+                                            className="w-full bg-transparent border-none outline-none focus:ring-0 text-sm font-medium text-slate-800 placeholder:text-slate-400 p-3"
+                                            placeholder="VD: Bắt buộc tiếng Anh IELTS 6.5+"
+                                            type="text"
+                                            value={customRules}
+                                            onChange={(e) => setCustomRules(e.target.value)}
                                         />
                                     </div>
-                                ))}
+                                </div>
+
+                                {/* AI Weights Slider */}
+                                <div className="flex flex-col gap-4 mt-2">
+                                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                        <label className="text-sm font-bold text-slate-800">Trọng số đánh giá AI</label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                                Mặc định
+                                            </span>
+                                            <input
+                                                type="checkbox"
+                                                className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                                                checked={useDefaultWeights}
+                                                onChange={(e) => setUseDefaultWeights(e.target.checked)}
+                                            />
+                                        </label>
+                                    </div>
+                                    <div
+                                        className={`space-y-4 transition-opacity ${useDefaultWeights ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}
+                                    >
+                                        {['weightExp', 'weightSkills', 'weightRole'].map((key) => (
+                                            <div key={key} className="flex flex-col gap-2">
+                                                <div className="flex justify-between text-xs font-bold text-slate-600">
+                                                    <span>{AI_WEIGHT_LABELS[key]}</span>
+                                                    <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                                        {aiWeights[key]}%
+                                                    </span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={aiWeights[key]}
+                                                    onChange={(e) => handleWeightChange(key, e.target.value)}
+                                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {!useDefaultWeights && totalWeight !== 100 && (
+                                        <p className="text-xs font-bold text-red-500 animate-pulse text-center bg-red-50 py-1.5 rounded-lg border border-red-100">
+                                            Tổng trọng số phải bằng 100% (Hiện tại: {totalWeight}%)
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Upload CVs & RUN Button */}
+                                <div className="mt-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="text-sm font-bold text-slate-800">Tập CV Ứng viên</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md">
+                                                {cvFiles.length} files
+                                            </span>
+                                            <button
+                                                onClick={() => cvFileInputRef.current?.click()}
+                                                className="text-[11px] font-bold bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-1 rounded-md hover:bg-blue-100 transition"
+                                            >
+                                                Thêm CV
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept=".pdf"
+                                            className="hidden"
+                                            ref={cvFileInputRef}
+                                            onChange={handleCvFilesChange}
+                                        />
+                                    </div>
+
+                                    <div className="bg-slate-50 rounded-xl p-2 border border-slate-200 shadow-inner">
+                                        {cvFiles.length === 0 ? (
+                                            <div
+                                                onClick={() => cvFileInputRef.current?.click()}
+                                                className="h-20 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-white rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors m-1"
+                                            >
+                                                <p className="text-xs font-bold text-slate-400">
+                                                    + Tải lên nhiều CV (.pdf)
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="max-h-[120px] overflow-y-auto space-y-1.5 p-1 custom-scrollbar">
+                                                {cvFiles.map((file, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="flex items-center justify-between bg-white border border-slate-200 p-2 rounded-lg shadow-sm"
+                                                    >
+                                                        <span className="text-[11px] font-bold text-slate-700 truncate mr-2">
+                                                            {file.name}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                removeCvFile(idx);
+                                                            }}
+                                                            className="text-rose-400 hover:text-rose-600 bg-rose-50 p-1 rounded-md transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        onClick={handleStartScan}
+                                        disabled={isScanning || (!useDefaultWeights && totalWeight !== 100)}
+                                        className="mt-4 bg-blue-600 text-white font-bold text-sm py-3.5 rounded-xl shadow-md hover:bg-blue-700 active:scale-95 transition-all w-full flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed"
+                                    >
+                                        {isScanning ? (
+                                            <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                            <BarChart3 size={18} />
+                                        )}
+                                        {isScanning ? 'Đang phân tích...' : 'Bắt đầu quét sâu'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Nút RUN */}
-                        <button
-                            onClick={handleStartScan}
-                            disabled={isScanning || (!useDefaultWeights && totalWeight !== 100)}
-                            className={`w-full font-black py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isScanning || (!useDefaultWeights && totalWeight !== 100) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white'}`}
-                        >
-                            {isScanning ? (
-                                <>
-                                    <Loader2 size={20} className="animate-spin" /> Đang xử lý dữ liệu...
-                                </>
-                            ) : (
-                                <>
-                                    <Bot size={20} /> Phân tích ngay
-                                </>
-                            )}
-                        </button>
-                    </div>
+                        {/* ── CỘT PHẢI: KẾT QUẢ ── */}
+                        <div className="xl:col-span-8 flex flex-col gap-6">
+                            {/* Thanh trạng thái Top */}
+                            <div className="flex justify-between items-center bg-white rounded-xl px-6 py-4 shadow-sm border border-slate-200">
+                                <div className="flex items-center gap-2">
+                                    <BarChart3 className="text-blue-600" size={20} />
+                                    <h2 className="font-extrabold text-[18px] text-slate-900">Kết quả Quét</h2>
+                                    <span className="ml-2 bg-slate-100 text-slate-600 font-bold text-[11px] px-2.5 py-1 rounded-md border border-slate-200">
+                                        Đã xử lý: {scanResults?.total_processed || 0}
+                                    </span>
+                                    {isScanning && (
+                                        <span className="ml-2 text-blue-600 text-xs font-bold flex items-center gap-1 animate-pulse">
+                                            <Loader2 size={12} className="animate-spin" /> Đang chạy
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button className="bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-lg border border-slate-200 transition-colors flex items-center gap-1.5 shadow-sm">
+                                        <UploadCloud size={14} /> Xuất báo cáo
+                                    </button>
+                                </div>
+                            </div>
 
-                    {/* CỘT PHẢI: KẾT QUẢ & HIỂN THỊ LỖI */}
-                    <div className="w-full lg:w-2/3 flex flex-col gap-6">
-                        {/* BOX HIỂN THỊ ERROR LOG */}
-                        {errorLog && (
-                            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 animate-in fade-in slide-in-from-top-4">
-                                <div className="flex items-start gap-3">
-                                    <AlertTriangle size={24} className="text-red-600 shrink-0 mt-0.5" />
-                                    <div className="w-full">
-                                        <h3 className="font-bold text-red-800 text-lg mb-1">{errorLog.title}</h3>
-                                        <p className="text-red-600 text-sm mb-3 leading-relaxed">{errorLog.details}</p>
-                                        <details className="group border border-red-200 bg-white rounded-lg cursor-pointer">
-                                            <summary className="px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-50 transition rounded-lg">
-                                                Xem Log kỹ thuật (Dành cho Developer)
-                                            </summary>
-                                            <div className="p-4 pt-0">
-                                                <pre className="bg-gray-900 text-green-400 p-4 rounded-xl text-xs overflow-x-auto mt-2 font-mono shadow-inner whitespace-pre-wrap">
+                            {/* Main Result Area */}
+                            {errorLog ? (
+                                <div className="bg-rose-50 border border-rose-200 rounded-[1.5rem] p-8 shadow-sm">
+                                    <div className="flex items-start gap-4">
+                                        <div className="bg-white p-3 rounded-2xl shadow-sm border border-rose-100">
+                                            <AlertTriangle size={32} className="text-rose-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-black text-rose-900 text-xl mb-2">{errorLog.title}</h3>
+                                            <p className="text-rose-700 font-medium mb-4 leading-relaxed">
+                                                {errorLog.details}
+                                            </p>
+                                            <details className="bg-white rounded-xl border border-rose-200 overflow-hidden group shadow-sm">
+                                                <summary className="px-5 py-3 font-bold text-sm text-rose-800 cursor-pointer bg-rose-50 hover:bg-rose-100 transition-colors list-none flex items-center gap-2">
+                                                    <ChevronDown
+                                                        size={16}
+                                                        className="group-open:-rotate-180 transition-transform"
+                                                    />{' '}
+                                                    Xem Log Lỗi
+                                                </summary>
+                                                <pre className="p-5 bg-slate-900 text-emerald-400 text-xs font-mono overflow-auto max-h-60 custom-scrollbar whitespace-pre-wrap">
                                                     {errorLog.raw}
                                                 </pre>
-                                            </div>
-                                        </details>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {!scanResults && !isScanning && !errorLog ? (
-                            <div className="h-full bg-white rounded-2xl border border-dashed border-gray-300 flex flex-col items-center justify-center p-10 text-gray-400 min-h-[500px]">
-                                <Bot size={64} className="mb-4 opacity-30 text-purple-600" />
-                                <h3 className="text-xl font-bold text-gray-600 mb-2">Bảng Xếp Hạng AI</h3>
-                                <p className="text-center max-w-md text-sm leading-relaxed">
-                                    Tải JD và CV lên cột bên trái, AI sẽ phân tích và đưa ra đánh giá dựa trên mức độ
-                                    phù hợp.
-                                </p>
-                            </div>
-                        ) : isScanning ? (
-                            <div className="h-full bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center p-10 min-h-[500px]">
-                                <div className="relative">
-                                    <div className="w-20 h-20 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin"></div>
-                                    <Bot
-                                        size={28}
-                                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-purple-600"
-                                    />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-800 mt-6 mb-2">
-                                    AI đang đọc CV và phân tích...
-                                </h3>
-                            </div>
-                        ) : (
-                            scanResults && (
-                                <div className="space-y-4">
-                                    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <h2 className="text-xl font-black text-gray-900">
-                                                🏆 Bảng xếp hạng Ứng viên
-                                            </h2>
-                                            <p className="text-sm text-gray-500 mt-1">
-                                                Đã xử lý:{' '}
-                                                <strong className="text-blue-600">
-                                                    {scanResults?.total_processed || 0}
-                                                </strong>{' '}
-                                                CV
-                                            </p>
+                                            </details>
                                         </div>
                                     </div>
-
+                                </div>
+                            ) : !scanResults && !isScanning ? (
+                                <div className="h-full bg-white rounded-[2rem] border border-dashed border-slate-300 shadow-sm flex flex-col items-center justify-center p-12 text-slate-500 min-h-[400px]">
+                                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 border border-slate-100">
+                                        <Bot size={40} className="text-slate-300" />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">
+                                        Hệ thống chờ lệnh
+                                    </h3>
+                                    <p className="text-center max-w-md text-sm font-medium leading-relaxed">
+                                        Cấu hình thông số bên trái và bắt đầu quét. AI sẽ đọc từng CV và đối sánh với JD
+                                        để tìm ra nhân tài phù hợp nhất.
+                                    </p>
+                                </div>
+                            ) : isScanning ? (
+                                <div className="h-full bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center justify-center p-12 min-h-[400px]">
+                                    <div className="relative mb-8">
+                                        <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                                        <Bot
+                                            size={24}
+                                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600 animate-pulse"
+                                        />
+                                    </div>
+                                    <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">
+                                        Đang trích xuất & chấm điểm
+                                    </h3>
+                                    <p className="text-slate-500 font-medium text-sm">Vui lòng đợi vài phút...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
                                     {scanResults?.leaderboard?.map((item, idx) => {
                                         const isExpanded = expandedCard === idx;
                                         const isPass =
@@ -625,98 +661,147 @@ const SearchCandidates = () => {
                                             item.recommendation === 'ACCEPTED' ||
                                             item.recommendation === 'PASS';
                                         const summary = item.executive_summary || item.ai_analysis || {};
-                                        const strengths = summary.strengths || [];
-                                        const weaknesses = summary.weaknesses || [];
+                                        const evalCore = item.jd_core_evaluation || [];
 
                                         return (
                                             <div
                                                 key={idx}
-                                                className={`bg-white rounded-2xl border transition-all duration-300 shadow-sm overflow-hidden ${isPass ? 'border-green-200' : 'border-red-200'}`}
+                                                className={`bg-white rounded-[1.5rem] p-6 shadow-sm border relative overflow-hidden flex flex-col gap-5 transition-all hover:shadow-md ${isPass ? 'border-emerald-200' : 'border-slate-200'}`}
                                             >
+                                                {/* Line highlight top */}
+                                                {isPass && (
+                                                    <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+                                                )}
+
+                                                {/* Header Profile */}
                                                 <div
-                                                    className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer hover:bg-gray-50"
+                                                    className="flex items-start justify-between cursor-pointer"
                                                     onClick={() => setExpandedCard(isExpanded ? null : idx)}
                                                 >
-                                                    <div className="flex items-center gap-4 flex-1 w-full min-w-0">
-                                                        <div
-                                                            className={`w-14 h-14 shrink-0 rounded-xl flex flex-col items-center justify-center text-white font-black shadow-inner ${isPass ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}
-                                                        >
-                                                            <span className="text-xl">{item.match_score}</span>
+                                                    <div className="flex items-center gap-4 flex-1">
+                                                        <div className="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                                                            <span className="font-black text-lg text-slate-600">
+                                                                #{idx + 1}
+                                                            </span>
                                                         </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-3 flex-wrap mb-1">
-                                                                <h3 className="font-bold text-gray-900 text-lg truncate">
-                                                                    {item.candidate_file}
-                                                                </h3>
-                                                                {renderRecommendationBadge(item.recommendation)}
-                                                            </div>
-                                                            <p className="text-sm text-gray-600 line-clamp-2 pr-4">
-                                                                {summary.final_verdict}
-                                                            </p>
+                                                        <div className="min-w-0">
+                                                            <h3 className="font-extrabold text-[18px] text-slate-900 leading-tight mb-1 truncate max-w-[200px] sm:max-w-md">
+                                                                {item.candidate_file}
+                                                            </h3>
+                                                            {renderRecommendationBadge(item.recommendation)}
                                                         </div>
                                                     </div>
-                                                    <div className="shrink-0 p-2 bg-gray-100 rounded-full text-gray-500">
-                                                        {isExpanded ? (
-                                                            <ChevronUp size={20} />
-                                                        ) : (
-                                                            <ChevronDown size={20} />
-                                                        )}
+
+                                                    {/* Score Badge */}
+                                                    <div
+                                                        className={`px-4 py-2.5 rounded-2xl font-black text-xl flex flex-col items-center leading-none border ${isPass ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200'}`}
+                                                    >
+                                                        <span>{item.match_score}</span>
+                                                        <span className="text-[9px] uppercase tracking-widest opacity-80 mt-1">
+                                                            Score
+                                                        </span>
                                                     </div>
                                                 </div>
 
+                                                {/* AI Summary (Luôn hiện) */}
+                                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Sparkles className="text-blue-600" size={16} />
+                                                        <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                                                            Đánh giá Tổng quan
+                                                        </h4>
+                                                    </div>
+                                                    <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                                        {summary.final_verdict || 'Không có tóm tắt.'}
+                                                    </p>
+                                                </div>
+
+                                                {/* Nút mở rộng */}
+                                                <div className="flex justify-center -mt-2">
+                                                    <button
+                                                        onClick={() => setExpandedCard(isExpanded ? null : idx)}
+                                                        className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-600 transition-colors bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm uppercase tracking-wide"
+                                                    >
+                                                        {isExpanded ? 'Đóng phân tích' : 'Mở phân tích chi tiết'}{' '}
+                                                        {isExpanded ? (
+                                                            <ChevronUp size={14} />
+                                                        ) : (
+                                                            <ChevronDown size={14} />
+                                                        )}
+                                                    </button>
+                                                </div>
+
+                                                {/* Detail Area (Mở rộng) */}
                                                 {isExpanded && (
-                                                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 animate-in slide-in-from-top-2">
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                                            <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
-                                                                <h4 className="font-bold text-green-700 flex items-center gap-2 mb-3 border-b border-green-50 pb-2">
-                                                                    <CheckCircle2 size={18} /> Điểm mạnh
-                                                                </h4>
-                                                                <ul className="space-y-2 text-sm text-gray-700 list-disc pl-4">
-                                                                    {strengths.map((str, i) => (
-                                                                        <li key={i}>{str}</li>
-                                                                    ))}
-                                                                </ul>
+                                                    <div className="pt-2 animate-in slide-in-from-top-2 duration-300 space-y-5">
+                                                        {/* Strengths / Weaknesses */}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div className="flex items-start gap-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
+                                                                <CheckCircle2
+                                                                    size={18}
+                                                                    className="text-emerald-600 shrink-0 mt-0.5"
+                                                                />
+                                                                <div>
+                                                                    <h4 className="font-bold text-sm text-emerald-900 mb-2">
+                                                                        Điểm nổi bật
+                                                                    </h4>
+                                                                    <ul className="text-sm text-emerald-800 space-y-1.5 list-disc pl-4 font-medium">
+                                                                        {(summary.strengths || []).map((s, i) => (
+                                                                            <li key={i}>{s}</li>
+                                                                        ))}
+                                                                    </ul>
+                                                                </div>
                                                             </div>
-                                                            <div className="bg-white p-4 rounded-xl border border-red-100 shadow-sm">
-                                                                <h4 className="font-bold text-red-700 flex items-center gap-2 mb-3 border-b border-red-50 pb-2">
-                                                                    <XCircle size={18} /> Thiếu sót
-                                                                </h4>
-                                                                <ul className="space-y-2 text-sm text-gray-700 list-disc pl-4">
-                                                                    {weaknesses.map((w, i) => (
-                                                                        <li key={i}>{w}</li>
-                                                                    ))}
-                                                                </ul>
+                                                            <div className="flex items-start gap-2 bg-rose-50/50 p-4 rounded-xl border border-rose-100/50">
+                                                                <XCircle
+                                                                    size={18}
+                                                                    className="text-rose-600 shrink-0 mt-0.5"
+                                                                />
+                                                                <div>
+                                                                    <h4 className="font-bold text-sm text-rose-900 mb-2">
+                                                                        Cần lưu ý
+                                                                    </h4>
+                                                                    <ul className="text-sm text-rose-800 space-y-1.5 list-disc pl-4 font-medium">
+                                                                        {(summary.weaknesses || []).map((w, i) => (
+                                                                            <li key={i}>{w}</li>
+                                                                        ))}
+                                                                    </ul>
+                                                                </div>
                                                             </div>
                                                         </div>
 
-                                                        {item.jd_core_evaluation && (
-                                                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                                                <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-                                                                    <h4 className="font-bold text-gray-800 text-sm">
-                                                                        🔍 Phân tích Từng tiêu chí JD
-                                                                    </h4>
-                                                                </div>
-                                                                <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
-                                                                    {item.jd_core_evaluation.map((evalItem, evIdx) => (
+                                                        {/* Core Eval Table */}
+                                                        {evalCore.length > 0 && (
+                                                            <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
+                                                                <h4 className="font-bold text-[11px] text-slate-500 uppercase tracking-wider pl-1">
+                                                                    Chi tiết Tiêu chí
+                                                                </h4>
+                                                                <div className="grid grid-cols-1 gap-3">
+                                                                    {evalCore.map((ev, i) => (
                                                                         <div
-                                                                            key={evIdx}
-                                                                            className="p-4 hover:bg-gray-50"
+                                                                            key={i}
+                                                                            className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col gap-2"
                                                                         >
-                                                                            <div className="flex justify-between items-start gap-4 mb-2">
-                                                                                <span className="font-semibold text-gray-800 text-sm flex-1">
-                                                                                    {evalItem.criteria}
+                                                                            <div className="flex justify-between items-center">
+                                                                                <span className="font-bold text-sm text-slate-800">
+                                                                                    {ev.criteria}
                                                                                 </span>
                                                                                 <span
-                                                                                    className={`shrink-0 px-2.5 py-1 rounded text-xs font-bold border ${evalItem.status === 'PASS' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                                                                                    className={`font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider border ${ev.status === 'PASS' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}
                                                                                 >
-                                                                                    {evalItem.status}
+                                                                                    {ev.status}
                                                                                 </span>
                                                                             </div>
-                                                                            <p className="text-xs text-gray-600 bg-gray-100/80 p-2 rounded border border-gray-100">
-                                                                                <strong className="text-gray-700">
-                                                                                    Dẫn chứng CV:{' '}
+                                                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                                <div
+                                                                                    className={`h-full rounded-full ${ev.status === 'PASS' ? 'bg-emerald-500 w-[95%]' : 'bg-rose-500 w-[40%]'}`}
+                                                                                ></div>
+                                                                            </div>
+                                                                            <p className="text-[12px] font-medium text-slate-600 leading-relaxed mt-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                                                <strong className="text-slate-800">
+                                                                                    CV ghi:
                                                                                 </strong>{' '}
-                                                                                {evalItem.evidence}
+                                                                                {ev.evidence}
                                                                             </p>
                                                                         </div>
                                                                     ))}
@@ -729,11 +814,27 @@ const SearchCandidates = () => {
                                         );
                                     })}
                                 </div>
-                            )
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
+
+            <style jsx>{`
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                }
+            `}</style>
         </div>
     );
 };

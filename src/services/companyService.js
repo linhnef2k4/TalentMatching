@@ -19,6 +19,11 @@ const companyService = {
         if (keyword) params.append('keyword', keyword);
         return axiosClient.get(`/public/companies/${id}/jobs?${params.toString()}`);
     },
+    // === API MỚI THÊM ===
+    toggleFollowCompany: (companyId) => axiosClient.post(`/candidate/companies/${companyId}/toggle-follow`),
+
+    getFollowingCompanies: (page = 0, size = 10) =>
+        axiosClient.get(`/candidate/companies/following?page=${page}&size=${size}`),
 };
 
 export default companyService;

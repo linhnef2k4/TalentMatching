@@ -19,6 +19,10 @@ const chatService = {
 
     // 5. Khởi tạo hoặc lấy phòng chat với một người khác (Thêm mới từ Swagger)
     initConversation: (recipientId) => axiosClient.post(`/chat/conversations/with/${recipientId}`),
+
+    sendMessage: (payload) => {
+        return axiosClient.post('/chat/send', payload);
+    },
 };
 
 export default chatService;

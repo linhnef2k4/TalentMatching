@@ -42,9 +42,21 @@ const Login = () => {
             console.log('Phản hồi từ Server:', response);
 
             if (response.token && response.user) {
-                login(response.user, response.token);
+                // 🚀 BẮT ĐẦU FIX: Gom dữ liệu công ty vào cục user nếu có
+                const mergedUser = {
+                    ...response.user,
+                }; // Nếu là HR, nhét thêm logo và id công ty vào để Context và Header/Sidebar xài
 
                 if (response.user.role === 'EMPLOYER' || response.user.role === 'ADMIN') {
+                    if (response.urlAvatarCompany) mergedUser.urlAvatarCompany = response.urlAvatarCompany;
+                    if (response.idCompany) mergedUser.employerId = response.idCompany;
+                } // Gọi hàm login của AuthContext với dữ liệu đã gộp
+
+                login(mergedUser, response.token); // 🚀 KẾT THÚC FIX
+                // SỬA ĐIỀU HƯỚNG TẠI ĐÂY
+                if (response.user.role === 'ADMIN') {
+                    navigate('/admin/dashboard');
+                } else if (response.user.role === 'EMPLOYER') {
                     navigate('/hr/dashboard');
                 } else {
                     navigate('/');

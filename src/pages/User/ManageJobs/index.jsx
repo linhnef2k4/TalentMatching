@@ -10,7 +10,6 @@ import {
     Send,
     Trash2,
     MapPin,
-    DollarSign,
     Building2,
     Loader2,
     BadgeCheck,
@@ -19,23 +18,26 @@ import {
     BrainCircuit,
     FileText,
     BarChart2,
+    Globe,
+    ExternalLink,
 } from 'lucide-react';
 import jobService from '~/services/jobService';
 import applicationService from '~/services/applicationService';
+import companyService from '~/services/companyService'; // IMPORT SERVICE
 
 const ManageJobs = () => {
     const [activeTab, setActiveTab] = useState('applied');
 
     const [appliedJobs, setAppliedJobs] = useState([]);
     const [savedJobs, setSavedJobs] = useState([]);
-    const [stats, setStats] = useState(null); // Thêm State lưu thống kê
+    const [followingCompanies, setFollowingCompanies] = useState([]); // THÊM STATE COMPANY
+    const [stats, setStats] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchMyData = async () => {
             setIsLoading(true);
 
-            // Xử lý song song cả 3 API: Applied, Saved, Stats
             try {
                 const applicationsPromise = applicationService.getMyApplications(0, 10).catch((err) => {
                     console.error('Lỗi API getMyApplications:', err);
@@ -52,10 +54,17 @@ const ManageJobs = () => {
                     return null;
                 });
 
-                const [applicationsRes, savedJobsRes, statsRes] = await Promise.all([
+                // THÊM API GỌI COMPANY FOLLOWING
+                const followingPromise = companyService.getFollowingCompanies(0, 50).catch((err) => {
+                    console.error('Lỗi API getFollowingCompanies:', err);
+                    return null;
+                });
+
+                const [applicationsRes, savedJobsRes, statsRes, followingRes] = await Promise.all([
                     applicationsPromise,
                     savedJobsPromise,
                     statsPromise,
+                    followingPromise,
                 ]);
 
                 // Xử lý data Ứng tuyển
@@ -72,9 +81,13 @@ const ManageJobs = () => {
                     setSavedJobs(savedJobsRes);
                 }
 
+                // Xử lý data Công ty đang theo dõi
+                if (followingRes && followingRes.content) {
+                    setFollowingCompanies(followingRes.content);
+                }
+
                 // Xử lý data Thống kê
                 if (statsRes) {
-                    // Tùy thuộc vào axios config, có thể cần truy cập statsRes.data
                     setStats(statsRes.data || statsRes);
                 }
             } catch (error) {
@@ -95,6 +108,19 @@ const ManageJobs = () => {
             setSavedJobs(savedJobs.filter((job) => job.id !== id));
         } catch (error) {
             console.error('Lỗi khi bỏ lưu:', error);
+            alert('Có lỗi xảy ra, vui lòng thử lại!');
+        }
+    };
+
+    // HÀM XỬ LÝ BỎ THEO DÕI CÔNG TY
+    const handleUnfollowCompany = async (e, companyId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            await companyService.toggleFollowCompany(companyId);
+            setFollowingCompanies(followingCompanies.filter((comp) => comp.id !== companyId));
+        } catch (error) {
+            console.error('Lỗi khi bỏ theo dõi:', error);
             alert('Có lỗi xảy ra, vui lòng thử lại!');
         }
     };
@@ -189,7 +215,6 @@ const ManageJobs = () => {
                                     Đã ứng tuyển
                                 </div>
                             </div>
-
                             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex flex-col justify-center">
                                 <div className="text-gray-300 mb-1">
                                     <Clock size={20} />
@@ -199,7 +224,6 @@ const ManageJobs = () => {
                                     Chờ phản hồi
                                 </div>
                             </div>
-
                             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex flex-col justify-center">
                                 <div className="text-purple-300 mb-1">
                                     <Users size={20} />
@@ -209,7 +233,6 @@ const ManageJobs = () => {
                                     Phỏng vấn
                                 </div>
                             </div>
-
                             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex flex-col justify-center">
                                 <div className="text-green-300 mb-1">
                                     <CheckCircle2 size={20} />
@@ -219,7 +242,6 @@ const ManageJobs = () => {
                                     Trúng tuyển
                                 </div>
                             </div>
-
                             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl flex flex-col justify-center col-span-2 md:col-span-1">
                                 <div className="text-red-300 mb-1">
                                     <XCircle size={20} />
@@ -233,28 +255,27 @@ const ManageJobs = () => {
                     )}
 
                     {/* TABS */}
-                    <div className="flex gap-2 border-b-0 translate-y-[1px]">
+                    <div className="flex gap-2 border-b-0 translate-y-[1px] overflow-x-auto scrollbar-hide">
                         <button
                             onClick={() => setActiveTab('applied')}
-                            className={`px-6 py-3.5 text-sm font-bold flex items-center gap-2 rounded-t-xl transition-all border border-b-0
-                                ${
-                                    activeTab === 'applied'
-                                        ? 'bg-slate-50 text-indigo-700 border-slate-200'
-                                        : 'bg-white/10 text-blue-100 border-transparent hover:bg-white/20 backdrop-blur-md'
-                                }`}
+                            className={`px-6 py-3.5 text-sm font-bold flex items-center gap-2 rounded-t-xl transition-all border border-b-0 whitespace-nowrap
+                                ${activeTab === 'applied' ? 'bg-slate-50 text-indigo-700 border-slate-200' : 'bg-white/10 text-blue-100 border-transparent hover:bg-white/20 backdrop-blur-md'}`}
                         >
                             <Send size={18} /> Việc đã ứng tuyển
                         </button>
                         <button
                             onClick={() => setActiveTab('saved')}
-                            className={`px-6 py-3.5 text-sm font-bold flex items-center gap-2 rounded-t-xl transition-all border border-b-0
-                                ${
-                                    activeTab === 'saved'
-                                        ? 'bg-slate-50 text-indigo-700 border-slate-200'
-                                        : 'bg-white/10 text-blue-100 border-transparent hover:bg-white/20 backdrop-blur-md'
-                                }`}
+                            className={`px-6 py-3.5 text-sm font-bold flex items-center gap-2 rounded-t-xl transition-all border border-b-0 whitespace-nowrap
+                                ${activeTab === 'saved' ? 'bg-slate-50 text-indigo-700 border-slate-200' : 'bg-white/10 text-blue-100 border-transparent hover:bg-white/20 backdrop-blur-md'}`}
                         >
                             <Bookmark size={18} /> Việc đã lưu
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('following')}
+                            className={`px-6 py-3.5 text-sm font-bold flex items-center gap-2 rounded-t-xl transition-all border border-b-0 whitespace-nowrap
+                                ${activeTab === 'following' ? 'bg-slate-50 text-indigo-700 border-slate-200' : 'bg-white/10 text-blue-100 border-transparent hover:bg-white/20 backdrop-blur-md'}`}
+                        >
+                            <Building2 size={18} /> Đang theo dõi
                         </button>
                     </div>
                 </div>
@@ -294,7 +315,6 @@ const ManageJobs = () => {
                                                                 </span>
                                                             </span>
                                                         </div>
-
                                                         <div className="flex items-center gap-3">
                                                             {renderStatusBadge(app.status)}
                                                             {app.matchScore !== null && (
@@ -365,11 +385,9 @@ const ManageJobs = () => {
                                                     >
                                                         <Trash2 size={20} />
                                                     </button>
-
                                                     <div className="absolute top-6 right-20 bg-purple-50 text-purple-700 font-extrabold text-sm px-4 py-2 rounded-lg border border-purple-100">
                                                         {formatSalary(job.salaryMin, job.salaryMax)}
                                                     </div>
-
                                                     <div className="flex items-start gap-5 pr-48">
                                                         <div className="w-[72px] h-[72px] rounded-xl border border-gray-100 bg-white p-1.5 flex-shrink-0 shadow-sm">
                                                             <img
@@ -381,7 +399,6 @@ const ManageJobs = () => {
                                                                 className="w-full h-full object-contain rounded-lg"
                                                             />
                                                         </div>
-
                                                         <div className="flex-1">
                                                             <h3 className="font-extrabold text-xl text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1 mb-1.5">
                                                                 {job.title}
@@ -390,7 +407,6 @@ const ManageJobs = () => {
                                                                 {job.employerName}
                                                                 <BadgeCheck className="text-blue-500" size={16} />
                                                             </p>
-
                                                             <div className="flex flex-wrap gap-2.5">
                                                                 <span className="bg-gray-50 border border-gray-200 text-gray-600 text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5">
                                                                     <MapPin size={14} className="text-gray-400" />{' '}
@@ -409,7 +425,6 @@ const ManageJobs = () => {
                                                             </div>
                                                         </div>
                                                     </div>
-
                                                     <div className="mt-5 pt-4 border-t border-gray-100 flex items-end justify-between gap-4 pr-12">
                                                         <p className="text-sm text-gray-500 line-clamp-1 flex-1">
                                                             -{' '}
@@ -439,6 +454,111 @@ const ManageJobs = () => {
                                         <Link to="/jobs">
                                             <button className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all">
                                                 Tìm việc ngay
+                                            </button>
+                                        </Link>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* TAB: CÔNG TY ĐANG THEO DÕI */}
+                        {activeTab === 'following' && (
+                            <>
+                                {followingCompanies.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {followingCompanies.map((company) => (
+                                            <div
+                                                key={company.id}
+                                                className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative flex flex-col"
+                                            >
+                                                <div className="flex items-start justify-between gap-4 mb-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-16 h-16 rounded-xl border border-gray-100 bg-white p-2 shadow-sm flex items-center justify-center flex-shrink-0">
+                                                            <img
+                                                                src={
+                                                                    company.logoUrl ||
+                                                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&background=f8f9ff&color=0F4C5C&bold=true`
+                                                                }
+                                                                alt={company.name}
+                                                                className="w-full h-full object-contain rounded-lg"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <h3
+                                                                className="font-extrabold text-lg text-gray-900 line-clamp-1"
+                                                                title={company.name}
+                                                            >
+                                                                {company.name}
+                                                            </h3>
+                                                            {company.website && (
+                                                                <a
+                                                                    href={
+                                                                        company.website.startsWith('http')
+                                                                            ? company.website
+                                                                            : `https://${company.website}`
+                                                                    }
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="text-sm font-medium text-blue-600 hover:underline flex items-center gap-1 mt-1 w-fit"
+                                                                >
+                                                                    <Globe size={14} /> Website
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex-1 space-y-2 mb-6">
+                                                    {company.address && (
+                                                        <p
+                                                            className="text-sm text-gray-600 flex items-start gap-2 line-clamp-2"
+                                                            title={company.address}
+                                                        >
+                                                            <MapPin
+                                                                size={16}
+                                                                className="text-gray-400 mt-0.5 shrink-0"
+                                                            />{' '}
+                                                            {company.address}
+                                                        </p>
+                                                    )}
+                                                    {company.shortDescription && (
+                                                        <p className="text-sm text-gray-500 line-clamp-2 mt-2 italic border-l-2 border-gray-200 pl-3">
+                                                            "{company.shortDescription}"
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center gap-3 mt-auto pt-4 border-t border-gray-100">
+                                                    <button
+                                                        onClick={(e) => handleUnfollowCompany(e, company.id)}
+                                                        className="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-bold hover:bg-red-50 hover:text-red-600 transition-colors flex items-center justify-center gap-2 border border-gray-200 hover:border-red-200"
+                                                    >
+                                                        <Trash2 size={16} /> Bỏ theo dõi
+                                                    </button>
+                                                    <Link to={`/companies/${company.id}`} className="flex-1">
+                                                        <button className="w-full px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-600 hover:text-white transition-colors flex items-center justify-center gap-2 border border-indigo-100">
+                                                            Xem chi tiết <ExternalLink size={16} />
+                                                        </button>
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="bg-white rounded-3xl border border-gray-200 border-dashed p-16 flex flex-col items-center justify-center text-center">
+                                        <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-5">
+                                            <Building2 size={40} className="text-indigo-300" />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                            Bạn chưa theo dõi công ty nào
+                                        </h3>
+                                        <p className="text-gray-500 mb-8 max-w-md">
+                                            Theo dõi các công ty yêu thích để không bỏ lỡ những cơ hội việc làm mới nhất
+                                            từ họ.
+                                        </p>
+                                        <Link to="/companies">
+                                            <button className="bg-indigo-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-all">
+                                                Khám phá công ty
                                             </button>
                                         </Link>
                                     </div>

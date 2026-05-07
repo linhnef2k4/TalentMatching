@@ -39,9 +39,9 @@ const applicationService = {
 
     // (API MỚI 3) Cập nhật trạng thái và thêm Ghi chú
     updateApplicationStatus: async (appId, status, notes = '') => {
-        // Dùng params vì Swagger yêu cầu status và notes là dạng Query Parameter (không phải Body)
-        return await axiosClient.patch(`/applications/${appId}/status`, null, {
-            params: { status, notes },
+        return await axiosClient.patch(`/applications/${appId}/status`, {
+            status: status,
+            notes: notes,
         });
     },
     quickMatch: async (payload) => {

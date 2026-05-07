@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import {
     Building,
     Lock,
@@ -16,9 +16,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import employerCompanyService from '~/services/employerCompanyService';
+import { AuthContext } from '~/context/AuthContext'; // 🚀 IMPORT AUTH CONTEXT
 
 const HRSettings = () => {
     const navigate = useNavigate();
+    const { updateUser } = useContext(AuthContext); // 🚀 LẤY HÀM UPDATE TỪ CONTEXT
 
     // Trạng thái Loading
     const [isLoading, setIsLoading] = useState(true);
@@ -84,10 +86,13 @@ const HRSettings = () => {
 
         try {
             const res = await employerCompanyService.uploadLogo(file);
-            // Theo swagger API trả về chuỗi string, kiểm tra nếu backend bọc trong data
             const newLogoUrl = typeof res === 'string' ? res : res.data || res;
 
             setFormData((prev) => ({ ...prev, logoUrl: newLogoUrl }));
+
+            // 🚀 ĐỒNG BỘ LOGO MỚI LÊN HEADER & SIDEBAR NGAY LẬP TỨC
+            updateUser({ urlAvatarCompany: newLogoUrl, companyAvatar: newLogoUrl });
+
             toast.success('Cập nhật Logo thành công!', { id: 'upload-toast' });
         } catch (error) {
             console.error('Lỗi upload logo:', error);

@@ -50,6 +50,37 @@ const userService = {
     getMatchedJobs: (candidateId) => {
         return axiosClient.get(`/v1/ai-core/candidates/${candidateId}/jobs`);
     },
+    // 1. Lấy danh sách user (Có bộ lọc và phân trang)
+    getUsers: (params) => {
+        // params có thể chứa: keyword, role, isActive, page, size
+        return axiosClient.get('/admin/users', { params });
+    },
+
+    // 2. Lấy chi tiết 1 user
+    getUserDetails: (id) => {
+        return axiosClient.get(`/admin/users/${id}`);
+    },
+
+    // 3. Khóa / Mở khóa tài khoản
+    updateUserStatus: (id, isActive, reason = '') => {
+        return axiosClient.patch(`/admin/users/${id}/status`, null, {
+            params: { isActive, reason },
+        });
+    },
+
+    // 4. Cấp quyền hoặc giáng chức
+    updateUserRole: (id, newRole) => {
+        return axiosClient.patch(`/admin/users/${id}/role`, null, {
+            params: { newRole },
+        });
+    },
+
+    // 5. Reset mật khẩu khẩn cấp
+    resetUserPassword: (id, newPassword) => {
+        return axiosClient.post(`/admin/users/${id}/reset-password`, null, {
+            params: { newPassword },
+        });
+    },
 };
 
 export default userService;

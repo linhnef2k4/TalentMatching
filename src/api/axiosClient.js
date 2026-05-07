@@ -2,7 +2,6 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-    // Đã thay bằng link API thật của bro
     baseURL: 'http://160.191.214.94:8080/api',
     headers: {
         'Content-Type': 'application/json',
@@ -26,8 +25,9 @@ axiosClient.interceptors.request.use(
 // Interceptor cho Response (Xử lý lỗi chung hoặc chuẩn hóa dữ liệu trả về)
 axiosClient.interceptors.response.use(
     (response) => {
-        // Nếu API trả về data bọc trong response.data, ta lấy luôn cho gọn
-        if (response && response.data) {
+        // FIX: Check !== undefined thay vì check Truthy.
+        // Đảm bảo không bị lọt các giá trị API trả về là "", 0, hoặc false.
+        if (response && response.data !== undefined) {
             return response.data;
         }
         return response;
@@ -36,6 +36,7 @@ axiosClient.interceptors.response.use(
         // Xử lý lỗi toàn cục (VD: Token hết hạn -> Bắt đăng nhập lại)
         if (error.response && error.response.status === 401) {
             console.error('Token hết hạn hoặc không hợp lệ!');
+            // Lưu ý: Tùy luồng dự án mà bạn có thể mở comment đoạn dưới để auto-logout
             // localStorage.removeItem('access_token');
             // window.location.href = '/login';
         }

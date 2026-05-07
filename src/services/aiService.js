@@ -21,6 +21,15 @@ const aiService = {
             raw_info: content,
         });
     },
+    // Lấy cấu hình AI
+    getSettings: () => {
+        return axiosClient.get('/admin/ai-settings');
+    },
+
+    // Cập nhật cấu hình AI
+    updateSettings: (data) => {
+        return axiosClient.put('/admin/ai-settings', data);
+    },
 };
 
 export default aiService;

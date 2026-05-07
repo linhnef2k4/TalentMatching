@@ -1,221 +1,362 @@
-import React, { useState } from 'react';
-import { Search, Filter, ShieldBan, UserCheck, MoreVertical, AlertTriangle, UserX } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    Search,
+    ShieldBan,
+    UserCheck,
+    Key,
+    ShieldAlert,
+    AlertTriangle,
+    CheckCircle2,
+    X,
+    Loader2,
+    ChevronLeft,
+    ChevronRight,
+    UserCog,
+} from 'lucide-react';
+import userService from '~/services/userService';
 
 const AdminUsers = () => {
-    // Mock dữ liệu tài khoản trong hệ thống
-    const [users, setUsers] = useState([
-        {
-            id: 1,
-            name: 'Linh Phan',
-            email: 'linhphan300424@gmail.com',
-            role: 'Seeker',
-            status: 'Active',
-            joinDate: '01/03/2026',
-            avatar: 'https://ui-avatars.com/api/?name=Linh+Phan&background=0D8ABC&color=fff',
-        },
-        {
-            id: 2,
-            name: 'Công ty TNHH TechNova',
-            email: 'hr@technova.com',
-            role: 'HR',
-            status: 'Active',
-            joinDate: '15/02/2026',
-            avatar: 'https://ui-avatars.com/api/?name=Tech+Nova&background=2563EB&color=fff',
-        },
-        {
-            id: 3,
-            name: 'Trần B',
-            email: 'tranb@gmail.com',
-            role: 'Seeker',
-            status: 'Active',
-            joinDate: '10/03/2026',
-            avatar: 'https://ui-avatars.com/api/?name=Tran+B&background=6B21A8&color=fff',
-        },
-        {
-            id: 4,
-            name: 'SpamUser99',
-            email: 'spam_marketing@fake.com',
-            role: 'Seeker',
-            status: 'Banned',
-            joinDate: '05/03/2026',
-            avatar: 'https://ui-avatars.com/api/?name=Spam+User&background=EF4444&color=fff',
-        },
-        {
-            id: 5,
-            name: 'Tập đoàn ABC',
-            email: 'tuyendung@abc.vn',
-            role: 'HR',
-            status: 'Active',
-            joinDate: '20/01/2026',
-            avatar: 'https://ui-avatars.com/api/?name=A+B+C&background=10B981&color=fff',
-        },
-    ]);
+    // 1. State Dữ liệu
+    const [users, setUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [toast, setToast] = useState({ show: false, type: '', message: '' });
 
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterRole, setFilterRole] = useState('All');
-    const [filterStatus, setFilterStatus] = useState('All');
-
-    // Logic Lọc Dữ liệu
-    const filteredUsers = users.filter((user) => {
-        const matchSearch =
-            user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchRole = filterRole === 'All' || user.role === filterRole;
-        const matchStatus = filterStatus === 'All' || user.status === filterStatus;
-        return matchSearch && matchRole && matchStatus;
+    // 2. State Bộ lọc & Phân trang
+    const [filters, setFilters] = useState({
+        keyword: '',
+        role: '', // Trống là tất cả
+        isActive: '', // Trống là tất cả, 'true', hoặc 'false'
     });
 
-    // Hàm Khóa / Mở khóa tài khoản
-    const handleToggleBan = (id, currentStatus) => {
-        const actionName = currentStatus === 'Active' ? 'khóa (ban)' : 'mở khóa';
-        if (window.confirm(`Bạn có chắc chắn muốn ${actionName} tài khoản này không?`)) {
-            setUsers(
-                users.map((user) => {
-                    if (user.id === id) {
-                        return { ...user, status: currentStatus === 'Active' ? 'Banned' : 'Active' };
-                    }
-                    return user;
-                }),
-            );
+    const [pagination, setPagination] = useState({
+        page: 0,
+        size: 10,
+        totalPages: 1,
+        totalElements: 0,
+    });
+
+    // 3. Hàm hiển thị thông báo
+    const showToast = (type, message) => {
+        setToast({ show: true, type, message });
+        setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3500);
+    };
+
+    // 4. Hàm Gọi API lấy danh sách
+    const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            // Chuẩn bị params, loại bỏ các filter rỗng
+            const params = {
+                page: pagination.page,
+                size: pagination.size,
+            };
+            if (filters.keyword) params.keyword = filters.keyword;
+            if (filters.role) params.role = filters.role;
+            if (filters.isActive !== '') params.isActive = filters.isActive === 'true';
+
+            const response = await userService.getUsers(params);
+
+            setUsers(response.content || []);
+            setPagination((prev) => ({
+                ...prev,
+                totalPages: response.totalPages || 1,
+                totalElements: response.totalElements || 0,
+            }));
+        } catch (error) {
+            console.error('Lỗi lấy danh sách user:', error);
+            showToast('error', 'Không thể tải danh sách tài khoản.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [filters, pagination.page, pagination.size]);
+
+    // Lắng nghe thay đổi filter và gọi API (Có debounce cho keyword)
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            fetchUsers();
+        }, 500); // Đợi người dùng gõ xong 500ms mới gọi API
+
+        return () => clearTimeout(timeoutId);
+    }, [fetchUsers]);
+
+    // 5. Các Hàm Hành Động (Actions)
+
+    // 5.1 Khóa / Mở Khóa
+    const handleToggleStatus = async (user) => {
+        const newStatus = !user.isActive;
+        const actionText = newStatus ? 'Mở khóa' : 'Khóa (Ban)';
+
+        if (!window.confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản ${user.email}?`)) return;
+
+        try {
+            await userService.updateUserStatus(user.id, newStatus, newStatus ? '' : 'Vi phạm chính sách');
+            showToast('success', `Đã ${actionText.toLowerCase()} tài khoản thành công!`);
+            fetchUsers(); // Refresh lại data
+        } catch (error) {
+            showToast('error', `Lỗi khi thay đổi trạng thái tài khoản.`);
+        }
+    };
+
+    // 5.2 Thay đổi Role
+    const handleChangeRole = async (user, newRole) => {
+        if (user.role === newRole) return;
+        if (!window.confirm(`Xác nhận đổi quyền của ${user.email} thành ${newRole}?`)) return;
+
+        try {
+            await userService.updateUserRole(user.id, newRole);
+            showToast('success', `Đã cập nhật quyền thành ${newRole}.`);
+            fetchUsers();
+        } catch (error) {
+            showToast('error', `Lỗi khi cập nhật phân quyền.`);
+        }
+    };
+
+    // 5.3 Reset Mật khẩu
+    const handleResetPassword = async (user) => {
+        const newPass = window.prompt(`Nhập mật khẩu mới cho ${user.email}:`, '123456');
+        if (!newPass) return; // Hủy
+
+        try {
+            await userService.resetUserPassword(user.id, newPass);
+            showToast('success', `Đã reset mật khẩu thành công!`);
+        } catch (error) {
+            showToast('error', `Lỗi khi reset mật khẩu.`);
+        }
+    };
+
+    // 6. Xử lý UI Badge
+    const getRoleBadge = (role) => {
+        switch (role) {
+            case 'ADMIN':
+                return 'bg-rose-100 text-rose-700 border-rose-200';
+            case 'EMPLOYER':
+                return 'bg-purple-100 text-purple-700 border-purple-200';
+            case 'CANDIDATE':
+                return 'bg-blue-100 text-blue-700 border-blue-200';
+            default:
+                return 'bg-slate-100 text-slate-700';
         }
     };
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto font-sans">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="space-y-6 max-w-7xl mx-auto pb-10 relative">
+            {/* TOAST NOTIFICATION */}
+            <div
+                className={`fixed top-8 right-8 z-50 transition-all duration-500 transform ${
+                    toast.show
+                        ? 'translate-y-0 opacity-100 scale-100'
+                        : '-translate-y-8 opacity-0 scale-95 pointer-events-none'
+                }`}
+            >
+                <div
+                    className={`flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${
+                        toast.type === 'success'
+                            ? 'bg-emerald-500/90 border-emerald-400 text-white'
+                            : 'bg-rose-500/90 border-rose-400 text-white'
+                    }`}
+                >
+                    {toast.type === 'success' ? (
+                        <CheckCircle2 size={24} className="animate-bounce" />
+                    ) : (
+                        <AlertTriangle size={24} className="animate-pulse" />
+                    )}
+                    <span className="font-bold tracking-wide">{toast.message}</span>
+                    <button
+                        onClick={() => setToast({ show: false })}
+                        className="ml-4 hover:bg-white/20 p-1 rounded-full transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+            </div>
+
+            {/* HEADER */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Quản lý Danh sách Tài khoản</h1>
-                    <p className="text-gray-500 mt-1">Kiểm soát truy cập và xử lý các tài khoản vi phạm chính sách.</p>
+                    <h1 className="text-2xl font-black text-slate-800">Quản lý Tài Khoản</h1>
+                    <p className="text-slate-500 mt-1 font-medium">
+                        Tìm kiếm, phân quyền và kiểm soát truy cập hệ thống.
+                    </p>
                 </div>
                 <div className="flex gap-4">
-                    <div className="bg-blue-50 px-4 py-2 rounded-xl text-blue-700 font-bold border border-blue-100 text-center">
-                        <span className="block text-2xl">{users.length}</span>
-                        <span className="text-xs font-semibold uppercase">Tổng tài khoản</span>
-                    </div>
-                    <div className="bg-red-50 px-4 py-2 rounded-xl text-red-700 font-bold border border-red-100 text-center">
-                        <span className="block text-2xl">{users.filter((u) => u.status === 'Banned').length}</span>
-                        <span className="text-xs font-semibold uppercase">Đã bị khóa</span>
+                    <div className="bg-indigo-50 px-5 py-2.5 rounded-2xl text-indigo-700 font-bold border border-indigo-100 text-center shadow-sm">
+                        <span className="block text-2xl font-black">{pagination.totalElements}</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Tổng User</span>
                     </div>
                 </div>
             </div>
 
-            {/* Toolbar: Search & Filters */}
-            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            {/* TOOLBAR: SEARCH & FILTERS */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4">
+                {/* Search Box */}
+                <div className="flex-1 relative group">
+                    <Search
+                        className="absolute left-4 top-3 text-slate-400 group-focus-within:text-indigo-600 transition-colors"
+                        size={20}
+                    />
                     <input
                         type="text"
-                        placeholder="Tìm theo tên hoặc email..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 transition"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Tìm kiếm theo Tên hoặc Email..."
+                        className="w-full pl-12 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium text-slate-700 placeholder-slate-400"
+                        value={filters.keyword}
+                        onChange={(e) => {
+                            setFilters((prev) => ({ ...prev, keyword: e.target.value }));
+                            setPagination((prev) => ({ ...prev, page: 0 })); // Reset page
+                        }}
                     />
                 </div>
-                <div className="flex gap-3">
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-3">
                     <select
-                        className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 cursor-pointer text-gray-700 font-medium"
-                        value={filterRole}
-                        onChange={(e) => setFilterRole(e.target.value)}
+                        className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer text-slate-700 font-bold transition-all"
+                        value={filters.role}
+                        onChange={(e) => {
+                            setFilters((prev) => ({ ...prev, role: e.target.value }));
+                            setPagination((prev) => ({ ...prev, page: 0 }));
+                        }}
                     >
-                        <option value="All">Tất cả Vai trò</option>
-                        <option value="Seeker">Ứng viên (Seeker)</option>
-                        <option value="HR">Nhà Tuyển Dụng (HR)</option>
+                        <option value="">Tất cả Vai trò</option>
+                        <option value="CANDIDATE">Ứng viên</option>
+                        <option value="EMPLOYER">Nhà Tuyển Dụng</option>
+                        <option value="ADMIN">Quản Trị Viên</option>
                     </select>
 
                     <select
-                        className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 cursor-pointer text-gray-700 font-medium"
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer text-slate-700 font-bold transition-all"
+                        value={filters.isActive}
+                        onChange={(e) => {
+                            setFilters((prev) => ({ ...prev, isActive: e.target.value }));
+                            setPagination((prev) => ({ ...prev, page: 0 }));
+                        }}
                     >
-                        <option value="All">Tất cả Trạng thái</option>
-                        <option value="Active">Đang hoạt động</option>
-                        <option value="Banned">Đã bị khóa</option>
+                        <option value="">Tất cả Trạng thái</option>
+                        <option value="true">Đang hoạt động</option>
+                        <option value="false">Đã bị khóa (Banned)</option>
                     </select>
                 </div>
             </div>
 
-            {/* Bảng Dữ liệu Tài khoản */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {/* DATA TABLE */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative min-h-[400px]">
+                {isLoading ? (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                        <Loader2 className="animate-spin text-indigo-600 mb-2" size={32} />
+                        <span className="text-slate-500 font-medium">Đang tải dữ liệu...</span>
+                    </div>
+                ) : null}
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-sm">
-                                <th className="py-4 px-6 font-semibold">Tài khoản</th>
-                                <th className="py-4 px-6 font-semibold">Vai trò</th>
-                                <th className="py-4 px-6 font-semibold">Ngày tham gia</th>
-                                <th className="py-4 px-6 font-semibold text-center">Trạng thái</th>
-                                <th className="py-4 px-6 font-semibold text-right">Hành động</th>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm uppercase tracking-wider">
+                                <th className="py-4 px-6 font-bold">Thông tin Tài khoản</th>
+                                <th className="py-4 px-6 font-bold text-center">Vai trò</th>
+                                <th className="py-4 px-6 font-bold text-center">Trạng thái</th>
+                                <th className="py-4 px-6 font-bold">Ngày tham gia</th>
+                                <th className="py-4 px-6 font-bold text-right">Hành động</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredUsers.length > 0 ? (
-                                filteredUsers.map((user) => (
+                        <tbody className="divide-y divide-slate-50">
+                            {users.length > 0 ? (
+                                users.map((user) => (
                                     <tr
                                         key={user.id}
-                                        className={`transition ${user.status === 'Banned' ? 'bg-red-50/30' : 'hover:bg-gray-50/80'}`}
+                                        className={`transition-colors ${!user.isActive ? 'bg-rose-50/40' : 'hover:bg-slate-50'}`}
                                     >
+                                        {/* Avatar & Info */}
                                         <td className="py-4 px-6">
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-4">
                                                 <img
-                                                    src={user.avatar}
+                                                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=random&color=fff&bold=true`}
                                                     alt="avatar"
-                                                    className={`w-10 h-10 rounded-full border ${user.status === 'Banned' ? 'border-red-300 grayscale' : 'border-gray-200'}`}
+                                                    className={`w-11 h-11 rounded-full shadow-sm border-2 ${!user.isActive ? 'border-rose-300 grayscale' : 'border-white'}`}
                                                 />
                                                 <div>
                                                     <p
-                                                        className={`font-bold ${user.status === 'Banned' ? 'text-red-900 line-through' : 'text-gray-900'}`}
+                                                        className={`font-black text-[15px] ${!user.isActive ? 'text-rose-900 line-through' : 'text-slate-800'}`}
                                                     >
-                                                        {user.name}
+                                                        {user.fullName}
                                                     </p>
-                                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                                    <p className="text-sm font-medium text-slate-500">{user.email}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-4 px-6">
-                                            <span
-                                                className={`px-3 py-1 rounded-full text-xs font-bold inline-block ${user.role === 'HR' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}
-                                            >
-                                                {user.role}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-6 text-sm text-gray-600 font-medium">{user.joinDate}</td>
+
+                                        {/* Select Role */}
                                         <td className="py-4 px-6 text-center">
-                                            {user.status === 'Active' ? (
-                                                <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
-                                                    <UserCheck size={14} /> Hoạt động
+                                            <select
+                                                className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer outline-none transition-colors ${getRoleBadge(user.role)}`}
+                                                value={user.role}
+                                                onChange={(e) => handleChangeRole(user, e.target.value)}
+                                            >
+                                                <option value="CANDIDATE">CANDIDATE</option>
+                                                <option value="EMPLOYER">EMPLOYER</option>
+                                                <option value="ADMIN">ADMIN</option>
+                                            </select>
+                                        </td>
+
+                                        {/* Status */}
+                                        <td className="py-4 px-6 text-center">
+                                            {user.isActive ? (
+                                                <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200">
+                                                    <CheckCircle2 size={14} /> Hoạt động
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
-                                                    <UserX size={14} /> Bị khóa
+                                                <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-200">
+                                                    <ShieldAlert size={14} /> Bị Khóa
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="py-4 px-6 text-right">
-                                            {user.status === 'Active' ? (
+
+                                        {/* Created At */}
+                                        <td className="py-4 px-6 text-sm text-slate-600 font-medium">
+                                            {new Date(user.createdAt).toLocaleDateString('vi-VN')}
+                                        </td>
+
+                                        {/* Actions */}
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {/* Button Lock/Unlock */}
+                                                {user.isActive ? (
+                                                    <button
+                                                        onClick={() => handleToggleStatus(user)}
+                                                        title="Khóa tài khoản"
+                                                        className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-colors border border-transparent hover:border-rose-200"
+                                                    >
+                                                        <ShieldBan size={18} />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleToggleStatus(user)}
+                                                        title="Mở khóa tài khoản"
+                                                        className="p-2 text-rose-500 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-colors border border-transparent hover:border-emerald-200"
+                                                    >
+                                                        <UserCheck size={18} />
+                                                    </button>
+                                                )}
+
+                                                {/* Button Reset Password */}
                                                 <button
-                                                    onClick={() => handleToggleBan(user.id, user.status)}
-                                                    className="bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-bold text-sm transition flex items-center gap-1.5 inline-flex shadow-sm"
+                                                    onClick={() => handleResetPassword(user)}
+                                                    title="Reset Mật khẩu"
+                                                    className="p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-600 rounded-xl transition-colors border border-transparent hover:border-amber-200"
                                                 >
-                                                    <ShieldBan size={16} /> Khóa tài khoản
+                                                    <Key size={18} />
                                                 </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleToggleBan(user.id, user.status)}
-                                                    className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-blue-600 px-3 py-1.5 rounded-lg font-bold text-sm transition flex items-center gap-1.5 inline-flex shadow-sm"
-                                                >
-                                                    <UserCheck size={16} /> Mở khóa
-                                                </button>
-                                            )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="py-12 text-center text-gray-500">
-                                        <AlertTriangle size={48} className="mx-auto text-yellow-500 mb-4 opacity-50" />
-                                        <p className="text-lg font-semibold text-gray-700">
-                                            Không tìm thấy tài khoản nào khớp với bộ lọc.
+                                    <td colSpan="5" className="py-16 text-center">
+                                        <UserCog size={48} className="mx-auto text-slate-300 mb-4" />
+                                        <p className="text-lg font-bold text-slate-600">
+                                            Không tìm thấy tài khoản nào!
+                                        </p>
+                                        <p className="text-sm text-slate-400 mt-1">
+                                            Vui lòng thử thay đổi từ khóa hoặc bộ lọc.
                                         </p>
                                     </td>
                                 </tr>
@@ -223,6 +364,32 @@ const AdminUsers = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* PAGINATION */}
+                {pagination.totalPages > 1 && (
+                    <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+                        <span className="text-sm font-medium text-slate-500">
+                            Trang <strong className="text-slate-800">{pagination.page + 1}</strong> /{' '}
+                            {pagination.totalPages}
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                disabled={pagination.page === 0}
+                                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <button
+                                disabled={pagination.page >= pagination.totalPages - 1}
+                                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

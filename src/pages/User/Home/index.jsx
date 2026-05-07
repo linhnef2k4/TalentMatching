@@ -562,11 +562,16 @@ const Home = () => {
             <footer className="bg-slate-900 text-slate-400 py-16">
                 <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                     <div>
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <BrainCircuit size={20} className="text-white" />
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                TL
                             </div>
-                            <span className="text-xl font-bold text-white">TalentMatch</span>
+                            <div className="flex flex-col leading-none">
+                                <span className="text-lg font-extrabold tracking-tight text-white">
+                                    Talent<span className="text-orange-500">Matching</span>
+                                </span>
+                                <div className="h-[2px] w-12 bg-orange-500 rounded-full mt-1"></div>
+                            </div>
                         </div>
                         <p className="text-sm leading-relaxed mb-6">
                             Đồng hành cùng hàng nghìn doanh nghiệp và triệu ứng viên trên hành trình chinh phục sự
@@ -613,20 +618,19 @@ const Home = () => {
                         <h5 className="text-white font-bold mb-6 text-sm">Kết nối</h5>
                         <ul className="space-y-4">
                             <li className="flex items-center gap-3 text-sm">
-                                <Mail className="text-indigo-400 shrink-0" size={15} /> contact@talentmatch.vn
+                                <Mail className="text-indigo-400 shrink-0" size={15} /> linhphan300424@gmail.com
                             </li>
                             <li className="flex items-center gap-3 text-sm">
-                                <Phone className="text-violet-400 shrink-0" size={15} /> 1900 1234
+                                <Phone className="text-violet-400 shrink-0" size={15} /> 0987265336
                             </li>
                             <li className="flex items-start gap-3 text-sm">
-                                <MapPin className="text-teal-400 shrink-0 mt-0.5" size={15} /> Tòa nhà FPT, Phố Duy Tân,
-                                Hà Nội
+                                <MapPin className="text-teal-400 shrink-0 mt-0.5" size={15} /> Lĩnh Nam, Hà Nội
                             </li>
                         </ul>
                     </div>
                 </div>
                 <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-slate-800 text-xs text-center text-slate-600">
-                    © 2026 TalentMatch Platform. All rights reserved. Designed with precision.
+                    © 2026 TalentMatch Platform. All rights reserved. Designed with PhanBaKhanhLinh^^.
                 </div>
             </footer>
         </div>

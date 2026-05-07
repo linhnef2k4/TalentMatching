@@ -26,6 +26,16 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('access_token', token);
     };
 
+    // 🚀 MỚI: Hàm Update User (Dùng để cập nhật Logo/Tên ngay lập tức khi HR lưu cài đặt)
+    const updateUser = (updatedFields) => {
+        setUser((prevUser) => {
+            if (!prevUser) return prevUser;
+            const newUser = { ...prevUser, ...updatedFields };
+            localStorage.setItem('user_info', JSON.stringify(newUser));
+            return newUser;
+        });
+    };
+
     // Hàm Logout: Xóa sạch dữ liệu
     const logout = () => {
         setUser(null);
@@ -34,5 +44,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('access_token');
     };
 
-    return <AuthContext.Provider value={{ user, isLoggedIn, login, logout }}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={{ user, isLoggedIn, login, logout, updateUser }}>{children}</AuthContext.Provider>
+    );
 };

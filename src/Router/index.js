@@ -29,11 +29,16 @@ import AdminAI from '~/pages/Admin/AIModels';
 import AdminUsers from '~/pages/Admin/Users';
 import AdminContent from '~/pages/Admin/Content';
 import AdminModeration from '~/pages/Admin/Moderation';
+import AdminPricing from '~/pages/Admin/Pricing'; // <-- Import thêm trang Admin Pricing
 import JobDetail from '~/pages/User/JobDetail';
 import ManageJob from '~/pages/User/ManageJobs';
 import CVEditor from '~/pages/User/CVEditor';
 import EditJob from '~/pages/HR/EditJob';
 import Candidates from '~/pages/HR/Candidates';
+import Pricing from '~/pages/User/Pricing';
+import PaymentResult from '~/pages/User/PaymentResult';
+import HRPricing from '~/pages/HR/Pricing';
+
 // Các trang dùng Header mặc định
 const publicRouters = [
     { path: '/', component: Home, layout: DefaultLayout },
@@ -48,10 +53,13 @@ const publicRouters = [
     { path: '/jobs/:id', component: JobDetail, layout: DefaultLayout },
     { path: '/manage-jobs', component: ManageJob, layout: DefaultLayout },
     { path: '/cv-builder/editor/:id', component: CVEditor, layout: Fragment },
+    { path: '/pricing', component: Pricing, layout: DefaultLayout },
+    { path: '/payment/callback', component: PaymentResult, layout: DefaultLayout },
 
-    // HR Routes tạm dùng DefaultLayout để test
-    { path: '/hr/dashboard', component: HRDashboard, layout: HRLayout }, // Đã đổi sang HRLayout
-    { path: '/hr/jd-optimizer', component: JDOptimizer, layout: HRLayout }, // Đã đổi sang HRLayout
+    // HR Routes
+    { path: '/hr/pricing', component: HRPricing, layout: HRLayout },
+    { path: '/hr/dashboard', component: HRDashboard, layout: HRLayout },
+    { path: '/hr/jd-optimizer', component: JDOptimizer, layout: HRLayout },
     { path: '/hr-register', component: HRRegister, layout: DefaultLayout },
     { path: '/hr/manage-jobs', component: ManageJobs, layout: HRLayout },
     { path: '/hr/search-candidates', component: SearchCandidates, layout: HRLayout },
@@ -67,7 +75,9 @@ const publicRouters = [
     { path: '/admin/users', component: AdminUsers, layout: AdminLayout },
     { path: '/admin/content', component: AdminContent, layout: AdminLayout },
     { path: '/admin/moderation', component: AdminModeration, layout: AdminLayout },
+    { path: '/admin/pricing', component: AdminPricing, layout: AdminLayout }, // <-- Thêm route cho Admin Pricing
 
+    // Auth Routes
     { path: '/login', component: Login, layout: Fragment },
     { path: '/register', component: SignUp, layout: Fragment },
     { path: '/forgot-password', component: ForgotPassword, layout: Fragment },
