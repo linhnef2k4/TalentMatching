@@ -29,7 +29,7 @@ import AdminAI from '~/pages/Admin/AIModels';
 import AdminUsers from '~/pages/Admin/Users';
 import AdminContent from '~/pages/Admin/Content';
 import AdminModeration from '~/pages/Admin/Moderation';
-import AdminPricing from '~/pages/Admin/Pricing'; // <-- Import thêm trang Admin Pricing
+import AdminPricing from '~/pages/Admin/Pricing';
 import JobDetail from '~/pages/User/JobDetail';
 import ManageJob from '~/pages/User/ManageJobs';
 import CVEditor from '~/pages/User/CVEditor';
@@ -38,7 +38,7 @@ import Candidates from '~/pages/HR/Candidates';
 import Pricing from '~/pages/User/Pricing';
 import PaymentResult from '~/pages/User/PaymentResult';
 import HRPricing from '~/pages/HR/Pricing';
-
+import CandidateDetail from '~/pages/HR/CandidateDetail';
 // Các trang dùng Header mặc định
 const publicRouters = [
     { path: '/', component: Home, layout: DefaultLayout },
@@ -65,6 +65,7 @@ const publicRouters = [
     { path: '/hr/search-candidates', component: SearchCandidates, layout: HRLayout },
     { path: '/hr/chat', component: HRChat, layout: HRLayout },
     { path: '/hr/settings', component: HRSettings, layout: HRLayout },
+    { path: '/hr/candidates/:id', component: CandidateDetail, layout: HRLayout },
     { path: '/hr/edit-job/:id', component: EditJob, layout: HRLayout },
     { path: '/hr/candidates', component: Candidates, layout: HRLayout },
 

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate
 import {
     Search,
     MapPin,
@@ -6,8 +7,7 @@ import {
     Sparkles,
     MessageSquare,
     FileText,
-    Star,
-    Briefcase,
+    Users,
     Bot,
     UploadCloud,
     X,
@@ -16,15 +16,16 @@ import {
     ChevronDown,
     ChevronUp,
     Loader2,
-    AlertCircle,
-    Zap,
-    SlidersHorizontal,
     AlertTriangle,
     BarChart3,
+    Phone,
+    Mail,
+    ChevronLeft,
+    ChevronRight,
+    User,
 } from 'lucide-react';
-import { mockCandidates } from '../../../mock/data';
-import { Link } from 'react-router-dom';
 import applicationService from '~/services/applicationService';
+import userService from '~/services/userService';
 
 // ==========================================
 // HÀM HELPER: UPLOAD TRỰC TIẾP LÊN CLOUDINARY
@@ -58,7 +59,6 @@ const uploadToCloudinary = async (file) => {
     return data.secure_url;
 };
 
-// Map nhãn cho các trọng số
 const AI_WEIGHT_LABELS = {
     weightExp: 'Kinh nghiệm (Exp)',
     weightSkills: 'Kỹ năng (Skills)',
@@ -69,30 +69,73 @@ const AI_WEIGHT_LABELS = {
 };
 
 const SearchCandidates = () => {
-    const [activeTab, setActiveTab] = useState('auto_match');
+    const navigate = useNavigate(); // Hook điều hướng
+    const [activeTab, setActiveTab] = useState('candidate_list');
 
-    // === STATES TAB 1: AUTO MATCH ===
+    // ========================================================
+    // STATES TAB 1: DANH SÁCH ỨNG VIÊN
+    // ========================================================
+    const [candidates, setCandidates] = useState([]);
+    const [isLoadingCandidates, setIsLoadingCandidates] = useState(true);
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterScore, setFilterScore] = useState('all');
-    const filteredCandidates =
-        mockCandidates?.filter((candidate) => {
-            const matchSearch =
-                candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                candidate.skills.some((skill) => skill.toLowerCase().includes(searchTerm.toLowerCase()));
-            let matchScoreFilter = true;
-            if (filterScore === 'high') matchScoreFilter = candidate.matchScore >= 80;
-            if (filterScore === 'medium') matchScoreFilter = candidate.matchScore >= 50 && candidate.matchScore < 80;
-            return matchSearch && matchScoreFilter;
-        }) || [];
 
-    // === STATES TAB 2: AI SCANNER ===
+    useEffect(() => {
+        if (activeTab === 'candidate_list') {
+            fetchCandidatesList();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, activeTab]);
+
+    const fetchCandidatesList = async () => {
+        setIsLoadingCandidates(true);
+        try {
+            const res = await userService.getCandidates(page, 12);
+            const data = res.data || res;
+            if (data && data.content) {
+                setCandidates(data.content);
+                setTotalPages(data.totalPages || 1);
+                setTotalElements(data.totalElements || 0);
+            }
+        } catch (error) {
+            console.error('Lỗi lấy danh sách ứng viên:', error);
+        } finally {
+            setIsLoadingCandidates(false);
+        }
+    };
+
+    const filteredCandidates = candidates.filter((c) => {
+        if (!searchTerm) return true;
+        const kw = searchTerm.toLowerCase();
+        return (c.fullName && c.fullName.toLowerCase().includes(kw)) || (c.email && c.email.toLowerCase().includes(kw));
+    });
+
+    const handleChatWithCandidate = (e, candidate) => {
+        e.stopPropagation(); // Chống nổi bọt sự kiện click ra card bên ngoài
+        navigate('/hr/chat', {
+            // Đảm bảo URL chat của HR
+            state: {
+                newContact: {
+                    id: candidate.id,
+                    email: candidate.email,
+                    name: candidate.fullName || 'Ứng viên',
+                    avatar: candidate.avatar,
+                },
+            },
+        });
+    };
+
+    // ========================================================
+    // STATES TAB 2: AI SCANNER
+    // ========================================================
     const [jdType, setJdType] = useState('text');
     const [jdText, setJdText] = useState('');
     const [jdFile, setJdFile] = useState(null);
     const [cvFiles, setCvFiles] = useState([]);
     const [customRules, setCustomRules] = useState('');
 
-    // AI SETTINGS STATES
     const [aiWeights, setAiWeights] = useState({
         weightExp: 20,
         weightSkills: 30,
@@ -131,7 +174,6 @@ const SearchCandidates = () => {
 
     const removeCvFile = (index) => setCvFiles((prev) => prev.filter((_, i) => i !== index));
 
-    // === HÀM THỰC THI QUÉT AI ===
     const handleStartScan = async () => {
         if (cvFiles.length === 0) return alert('Vui lòng tải lên ít nhất 1 CV để quét!');
         if (jdType === 'text' && !jdText.trim()) return alert('Vui lòng nhập Text JD!');
@@ -232,18 +274,17 @@ const SearchCandidates = () => {
                         </p>
                     </div>
 
-                    {/* Flat Segmented Control */}
                     <div className="bg-slate-200/60 rounded-full p-1.5 flex items-center self-start">
                         <button
-                            onClick={() => setActiveTab('auto_match')}
+                            onClick={() => setActiveTab('candidate_list')}
                             className={`text-sm font-bold px-6 py-2.5 rounded-full transition-all duration-200 flex items-center gap-2 ${
-                                activeTab === 'auto_match'
+                                activeTab === 'candidate_list'
                                     ? 'bg-white text-blue-700 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-300/50'
                             }`}
                         >
-                            <Zap size={16} className={activeTab === 'auto_match' ? 'text-amber-500' : ''} /> Gợi ý Tự
-                            động
+                            <Users size={16} className={activeTab === 'candidate_list' ? 'text-blue-500' : ''} />
+                            Danh sách Ứng viên
                         </button>
                         <button
                             onClick={() => setActiveTab('ai_scanner')}
@@ -260,108 +301,129 @@ const SearchCandidates = () => {
                 </div>
 
                 {/* ========================================================
-                    TAB 1: AUTO MATCH
+                    TAB 1: DANH SÁCH ỨNG VIÊN (TÍCH HỢP API)
                 ======================================================== */}
-                {activeTab === 'auto_match' && (
+                {activeTab === 'candidate_list' && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-                        {/* Search & Filter Bar */}
-                        <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex flex-col md:flex-row gap-4">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm flex flex-col md:flex-row gap-4">
                             <div className="flex-1 relative">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Tìm theo tên, kỹ năng..."
+                                    placeholder="Tìm theo tên hoặc email ứng viên..."
                                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition font-medium text-slate-900 placeholder:text-slate-400"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
-                            </div>
-                            <div className="flex gap-3">
-                                <select
-                                    className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 cursor-pointer text-slate-700 font-bold transition"
-                                    value={filterScore}
-                                    onChange={(e) => setFilterScore(e.target.value)}
-                                >
-                                    <option value="all">Mọi độ phù hợp</option>
-                                    <option value="high">Phù hợp cao (80%+)</option>
-                                    <option value="medium">Phù hợp khá (50-80%)</option>
-                                </select>
-                                <button className="px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition flex items-center gap-2 font-bold">
-                                    <Filter size={18} /> Lọc
-                                </button>
+                                {searchTerm && (
+                                    <X
+                                        size={18}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer hover:text-rose-500"
+                                        onClick={() => setSearchTerm('')}
+                                    />
+                                )}
                             </div>
                         </div>
 
-                        {/* Candidates Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {filteredCandidates.length > 0 ? (
-                                filteredCandidates.map((candidate) => (
+                        {isLoadingCandidates ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-3">
+                                <Loader2 size={40} className="animate-spin text-blue-500" />
+                                <p className="text-slate-500 font-medium">Đang tải danh sách ứng viên...</p>
+                            </div>
+                        ) : filteredCandidates.length > 0 ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                {filteredCandidates.map((c) => (
                                     <div
-                                        key={candidate.id}
-                                        className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col"
+                                        key={c.id}
+                                        onClick={() => navigate(`/hr/candidates/${c.id}`)} // ĐIỀU HƯỚNG TỚI CHI TIẾT
+                                        className="bg-white cursor-pointer rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-blue-300 transition-all duration-300 p-6 flex flex-col relative overflow-hidden group"
                                     >
-                                        <div className="flex justify-between items-start mb-5">
-                                            <div className="flex gap-4 items-center">
-                                                <img
-                                                    src={candidate.avatar}
-                                                    alt={candidate.name}
-                                                    className="w-14 h-14 rounded-full border border-slate-100 shadow-sm object-cover"
-                                                />
-                                                <div>
-                                                    <h3 className="font-extrabold text-xl text-slate-900 leading-tight">
-                                                        {candidate.name}
-                                                    </h3>
-                                                    <p className="text-blue-600 font-medium text-sm mt-0.5">
-                                                        {candidate.title}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl font-black text-lg border border-blue-100 flex flex-col items-center leading-none">
-                                                <span>{candidate.matchScore}%</span>
-                                            </div>
-                                        </div>
+                                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-                                        <div className="flex flex-wrap gap-4 text-xs text-slate-500 font-semibold mb-5 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            <span className="flex items-center gap-1.5">
-                                                <MapPin size={14} className="text-slate-400" /> {candidate.location}
-                                            </span>
-                                            <span className="flex items-center gap-1.5">
-                                                <Briefcase size={14} className="text-slate-400" /> KN: {candidate.exp}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-2 mb-6">
-                                            {candidate.skills.map((skill, idx) => (
-                                                <span
-                                                    key={idx}
-                                                    className="bg-white border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold"
+                                        <div className="flex items-start gap-4 mb-5">
+                                            <div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden shrink-0 relative">
+                                                {c.avatar ? (
+                                                    <img
+                                                        src={c.avatar}
+                                                        alt={c.fullName}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <User size={28} className="text-slate-400" />
+                                                )}
+                                                {c.isActive && (
+                                                    <div className="absolute bottom-1 right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3
+                                                    className="font-extrabold text-[19px] text-slate-900 leading-tight truncate mb-1"
+                                                    title={c.fullName || 'Chưa cập nhật tên'}
                                                 >
-                                                    {skill}
-                                                </span>
-                                            ))}
+                                                    {c.fullName || 'Ứng viên chưa cập nhật tên'}
+                                                </h3>
+                                                <div className="flex items-center gap-1.5 text-slate-500 text-sm font-medium mt-1.5">
+                                                    <Mail size={14} className="shrink-0 text-slate-400" />
+                                                    <span className="truncate">{c.email}</span>
+                                                </div>
+                                                {c.phoneNumber && (
+                                                    <div className="flex items-center gap-1.5 text-slate-500 text-sm font-medium mt-1.5">
+                                                        <Phone size={14} className="shrink-0 text-slate-400" />
+                                                        <span>{c.phoneNumber}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
-                                        <div className="mt-auto flex gap-3 pt-4 border-t border-slate-100">
-                                            <button className="flex-1 flex items-center justify-center gap-2 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl transition">
-                                                <FileText size={18} /> Hồ sơ
-                                            </button>
-                                            <Link
-                                                to="/chat"
-                                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm"
+                                        <div className="mt-auto pt-5 border-t border-slate-100 flex gap-3">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/hr/candidates/${c.id}`);
+                                                }}
+                                                className="flex-1 flex justify-center items-center gap-2 py-2.5 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 font-bold text-sm transition-colors border border-blue-100"
                                             >
-                                                <MessageSquare size={18} /> Nhắn tin
-                                            </Link>
+                                                <FileText size={16} /> Xem Hồ sơ
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleChatWithCandidate(e, c)}
+                                                className="flex-1 flex justify-center items-center gap-2 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold text-sm transition-colors shadow-sm"
+                                            >
+                                                <MessageSquare size={16} /> Nhắn tin
+                                            </button>
                                         </div>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-300 shadow-sm">
-                                    <Search size={48} className="mx-auto text-slate-300 mb-4" />
-                                    <h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy ứng viên</h3>
-                                    <p className="text-slate-500">Hãy thử thay đổi từ khóa hoặc bộ lọc.</p>
-                                </div>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-20 text-center bg-white rounded-[2rem] border border-dashed border-slate-300 shadow-sm">
+                                <Search size={48} className="mx-auto text-slate-300 mb-4" />
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Không tìm thấy ứng viên</h3>
+                                <p className="text-slate-500">Hãy thử thay đổi từ khóa tìm kiếm.</p>
+                            </div>
+                        )}
+
+                        {!isLoadingCandidates && totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-4 pt-8">
+                                <button
+                                    disabled={page === 0}
+                                    onClick={() => setPage(page - 1)}
+                                    className="p-2 border border-slate-200 rounded-lg text-slate-600 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <span className="text-sm font-bold text-slate-600 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                                    Trang {page + 1} / {totalPages}
+                                </span>
+                                <button
+                                    disabled={page === totalPages - 1}
+                                    onClick={() => setPage(page + 1)}
+                                    className="p-2 border border-slate-200 rounded-lg text-slate-600 bg-white hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -382,7 +444,6 @@ const SearchCandidates = () => {
                                     </h2>
                                 </div>
 
-                                {/* JD Input */}
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center">
                                         <label className="text-sm font-bold text-slate-800">Mô tả công việc (JD)</label>
@@ -438,7 +499,6 @@ const SearchCandidates = () => {
                                     </div>
                                 </div>
 
-                                {/* Custom Rules */}
                                 <div className="flex flex-col gap-2">
                                     <label className="text-sm font-bold text-slate-800">
                                         Luật tùy chỉnh (Tùy chọn)
@@ -454,7 +514,6 @@ const SearchCandidates = () => {
                                     </div>
                                 </div>
 
-                                {/* AI Weights Slider */}
                                 <div className="flex flex-col gap-4 mt-2">
                                     <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                                         <label className="text-sm font-bold text-slate-800">Trọng số đánh giá AI</label>
@@ -499,7 +558,6 @@ const SearchCandidates = () => {
                                     )}
                                 </div>
 
-                                {/* Upload CVs & RUN Button */}
                                 <div className="mt-2 flex flex-col gap-3 border-t border-slate-100 pt-4">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className="text-sm font-bold text-slate-800">Tập CV Ứng viên</label>
@@ -577,7 +635,6 @@ const SearchCandidates = () => {
 
                         {/* ── CỘT PHẢI: KẾT QUẢ ── */}
                         <div className="xl:col-span-8 flex flex-col gap-6">
-                            {/* Thanh trạng thái Top */}
                             <div className="flex justify-between items-center bg-white rounded-xl px-6 py-4 shadow-sm border border-slate-200">
                                 <div className="flex items-center gap-2">
                                     <BarChart3 className="text-blue-600" size={20} />
@@ -598,7 +655,6 @@ const SearchCandidates = () => {
                                 </div>
                             </div>
 
-                            {/* Main Result Area */}
                             {errorLog ? (
                                 <div className="bg-rose-50 border border-rose-200 rounded-[1.5rem] p-8 shadow-sm">
                                     <div className="flex items-start gap-4">
@@ -668,12 +724,9 @@ const SearchCandidates = () => {
                                                 key={idx}
                                                 className={`bg-white rounded-[1.5rem] p-6 shadow-sm border relative overflow-hidden flex flex-col gap-5 transition-all hover:shadow-md ${isPass ? 'border-emerald-200' : 'border-slate-200'}`}
                                             >
-                                                {/* Line highlight top */}
                                                 {isPass && (
                                                     <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
                                                 )}
-
-                                                {/* Header Profile */}
                                                 <div
                                                     className="flex items-start justify-between cursor-pointer"
                                                     onClick={() => setExpandedCard(isExpanded ? null : idx)}
@@ -691,8 +744,6 @@ const SearchCandidates = () => {
                                                             {renderRecommendationBadge(item.recommendation)}
                                                         </div>
                                                     </div>
-
-                                                    {/* Score Badge */}
                                                     <div
                                                         className={`px-4 py-2.5 rounded-2xl font-black text-xl flex flex-col items-center leading-none border ${isPass ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200'}`}
                                                     >
@@ -702,8 +753,6 @@ const SearchCandidates = () => {
                                                         </span>
                                                     </div>
                                                 </div>
-
-                                                {/* AI Summary (Luôn hiện) */}
                                                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col gap-2">
                                                     <div className="flex items-center gap-2">
                                                         <Sparkles className="text-blue-600" size={16} />
@@ -715,8 +764,6 @@ const SearchCandidates = () => {
                                                         {summary.final_verdict || 'Không có tóm tắt.'}
                                                     </p>
                                                 </div>
-
-                                                {/* Nút mở rộng */}
                                                 <div className="flex justify-center -mt-2">
                                                     <button
                                                         onClick={() => setExpandedCard(isExpanded ? null : idx)}
@@ -730,11 +777,8 @@ const SearchCandidates = () => {
                                                         )}
                                                     </button>
                                                 </div>
-
-                                                {/* Detail Area (Mở rộng) */}
                                                 {isExpanded && (
                                                     <div className="pt-2 animate-in slide-in-from-top-2 duration-300 space-y-5">
-                                                        {/* Strengths / Weaknesses */}
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                             <div className="flex items-start gap-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
                                                                 <CheckCircle2
@@ -769,8 +813,6 @@ const SearchCandidates = () => {
                                                                 </div>
                                                             </div>
                                                         </div>
-
-                                                        {/* Core Eval Table */}
                                                         {evalCore.length > 0 && (
                                                             <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
                                                                 <h4 className="font-bold text-[11px] text-slate-500 uppercase tracking-wider pl-1">

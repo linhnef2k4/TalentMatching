@@ -81,6 +81,22 @@ const userService = {
             params: { newPassword },
         });
     },
+    // API lấy danh sách ứng viên có phân trang
+    getCandidates: (page = 0, size = 12) => {
+        return axiosClient.get(`/users/candidates?page=${page}&size=${size}`);
+    },
+    // API lấy chi tiết ứng viên (Tự động ghi log Profile View)
+    getCandidateById: (id) => {
+        return axiosClient.get(`/candidates/${id}`);
+    },
+    // THÊM API MỚI VÀO ĐÂY:
+    downloadCvCandidate: (candidateId) => {
+        return axiosClient.get(`/hr/${candidateId}/download-cv`);
+    },
+    // Lượt xem hồ sơ
+    getProfileViews: (page = 0, size = 10) => {
+        return axiosClient.get(`/candidates/me/who-viewed?page=${page}&size=${size}`);
+    },
 };
 
 export default userService;

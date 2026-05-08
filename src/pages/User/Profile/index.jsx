@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
     User,
     Mail,
@@ -15,6 +16,10 @@ import {
     ShieldAlert,
     Lock,
     HelpCircle,
+    Eye,
+    Building2,
+    Clock,
+    Crown,
 } from 'lucide-react';
 import { AuthContext } from '~/context/AuthContext';
 import userService from '~/services/userService';
@@ -47,6 +52,16 @@ const Profile = () => {
     const avatarInputRef = useRef(null);
     const cvInputRef = useRef(null);
 
+    // ===============================================
+    // STATE CHO TAB: AI ĐÃ XEM HỒ SƠ
+    // ===============================================
+    const [viewers, setViewers] = useState([]);
+    const [isViewersLoading, setIsViewersLoading] = useState(false);
+    const [viewersError, setViewersError] = useState(null); // Để lưu trạng thái bị chặn (ví dụ: Lỗi 403)
+    const [viewerPage, setViewerPage] = useState(0);
+    const [viewerTotalPages, setViewerTotalPages] = useState(1);
+    const [viewerTotalElements, setViewerTotalElements] = useState(0);
+
     useEffect(() => {
         if (user) {
             setFormData({
@@ -59,6 +74,36 @@ const Profile = () => {
             });
         }
     }, [user]);
+
+    // Gọi API Who Viewed khi Tab này được bật
+    useEffect(() => {
+        if (activeTab === 'who_viewed' && user?.role === 'CANDIDATE') {
+            fetchViewers();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, viewerPage]);
+
+    const fetchViewers = async () => {
+        setIsViewersLoading(true);
+        setViewersError(null);
+        try {
+            const response = await userService.getProfileViews(viewerPage, 10);
+            const data = response.data || response;
+            setViewers(data.content || []);
+            setViewerTotalPages(data.totalPages || 1);
+            setViewerTotalElements(data.totalElements || 0);
+        } catch (error) {
+            console.error('Lỗi lấy danh sách lượt xem:', error);
+            // Nếu mã lỗi là 403 (Forbidden), tức là yêu cầu gói PRO
+            if (error.response && error.response.status === 403) {
+                setViewersError('REQUIRES_PRO');
+            } else {
+                setViewersError('SYSTEM_ERROR');
+            }
+        } finally {
+            setIsViewersLoading(false);
+        }
+    };
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -137,7 +182,20 @@ const Profile = () => {
     const getAvatar = () =>
         user?.avatar ||
         `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&background=0D8ABC&color=fff&size=256`;
+
     const getFileNameFromUrl = (url) => (url ? url.split('/').pop().split('?')[0].substring(0, 30) + '...' : '');
+
+    const formatDateTime = (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        return d.toLocaleDateString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        });
+    };
 
     return (
         <div className="bg-slate-100 min-h-screen font-sans pb-20 pt-10">
@@ -192,6 +250,24 @@ const Profile = () => {
                             >
                                 <User size={18} /> Thông tin cá nhân
                             </button>
+
+                            {/* MENU: CHỈ ỨNG VIÊN MỚI THẤY AI ĐÃ XEM HỒ SƠ */}
+                            {user?.role === 'CANDIDATE' && (
+                                <button
+                                    onClick={() => setActiveTab('who_viewed')}
+                                    className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${activeTab === 'who_viewed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Eye size={18} />
+                                        Số lượt xem hồ sơ
+                                    </div>
+                                    <Crown
+                                        size={14}
+                                        className={activeTab === 'who_viewed' ? 'text-amber-300' : 'text-amber-500'}
+                                    />
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => setActiveTab('password')}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${activeTab === 'password' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'}`}
@@ -211,7 +287,7 @@ const Profile = () => {
                     <div className="md:col-span-3">
                         {/* TAB 1: THÔNG TIN CÁ NHÂN */}
                         {activeTab === 'profile' && (
-                            <div className="space-y-6">
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                                 {/* Form Info */}
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                                     <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50 rounded-t-xl">
@@ -371,10 +447,136 @@ const Profile = () => {
                             </div>
                         )}
 
-                        {/* TAB 2: ĐỔI MẬT KHẨU */}
+                        {/* TAB 2: AI ĐÃ XEM HỒ SƠ */}
+                        {activeTab === 'who_viewed' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                                <Eye size={20} className="text-blue-600" /> Nhà tuyển dụng đã xem hồ sơ
+                                            </h3>
+                                            <p className="text-sm text-slate-500 mt-1">
+                                                Biết được công ty nào đang quan tâm đến bạn.
+                                            </p>
+                                        </div>
+                                        <span className="bg-white text-blue-700 font-black px-3 py-1 rounded-lg border border-blue-100 shadow-sm">
+                                            {viewerTotalElements} Lượt xem
+                                        </span>
+                                    </div>
+
+                                    <div className="p-6">
+                                        {isViewersLoading ? (
+                                            <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                                <Loader2 size={32} className="animate-spin text-blue-500" />
+                                                <span className="text-slate-500 font-medium">Đang tải dữ liệu...</span>
+                                            </div>
+                                        ) : viewersError === 'REQUIRES_PRO' ? (
+                                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                                <div className="w-20 h-20 bg-gradient-to-tr from-amber-100 to-orange-100 rounded-full flex items-center justify-center mb-5 shadow-inner">
+                                                    <Crown size={36} className="text-amber-500" />
+                                                </div>
+                                                <h3 className="text-xl font-bold text-slate-900 mb-2">
+                                                    Tính năng dành riêng cho PRO
+                                                </h3>
+                                                <p className="text-slate-600 mb-6 max-w-md">
+                                                    Nâng cấp tài khoản VIP để mở khóa tính năng{' '}
+                                                    <strong>"Xem ai đã xem hồ sơ"</strong> cùng nhiều đặc quyền giúp bạn
+                                                    nổi bật trước hàng ngàn Nhà tuyển dụng.
+                                                </p>
+                                                <Link
+                                                    to="/pricing"
+                                                    className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-orange-500/30 transition-all hover:-translate-y-0.5"
+                                                >
+                                                    Nâng cấp VIP ngay
+                                                </Link>
+                                            </div>
+                                        ) : viewersError === 'SYSTEM_ERROR' ? (
+                                            <div className="py-12 text-center text-rose-500">
+                                                <ShieldAlert size={48} className="mx-auto mb-3" />
+                                                <p className="font-bold">
+                                                    Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại sau.
+                                                </p>
+                                            </div>
+                                        ) : viewers.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {viewers.map((viewer, index) => (
+                                                    <Link
+                                                        key={index}
+                                                        to={`/companies/${viewer.companyId}`}
+                                                        className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all bg-slate-50 group"
+                                                    >
+                                                        <div className="w-14 h-14 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden p-1.5">
+                                                            <img
+                                                                src={
+                                                                    viewer.companyLogo ||
+                                                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(viewer.companyName)}&background=e5eeff&color=004ac6`
+                                                                }
+                                                                alt={viewer.companyName}
+                                                                className="w-full h-full object-contain"
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                                                                {viewer.companyName}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 font-medium truncate">
+                                                                <User size={12} /> HR: {viewer.employerName}
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 mt-2 text-[11px] text-slate-400 font-semibold bg-white w-fit px-2 py-1 rounded border border-slate-200">
+                                                                <Clock size={12} /> {formatDateTime(viewer.viewedAt)}
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="py-16 text-center">
+                                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                                                    <Building2 size={32} className="text-slate-300" />
+                                                </div>
+                                                <h4 className="font-bold text-slate-700 mb-1">Chưa có lượt xem nào</h4>
+                                                <p className="text-sm text-slate-500">
+                                                    Hãy cập nhật hồ sơ đầy đủ để thu hút nhiều nhà tuyển dụng hơn.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Pagination cho Lượt xem */}
+                                        {viewerTotalPages > 1 && !viewersError && !isViewersLoading && (
+                                            <div className="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-slate-100">
+                                                <button
+                                                    disabled={viewerPage === 0}
+                                                    onClick={() => setViewerPage((prev) => Math.max(0, prev - 1))}
+                                                    className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition"
+                                                >
+                                                    Trang trước
+                                                </button>
+                                                <span className="text-sm font-semibold text-slate-500">
+                                                    {viewerPage + 1} / {viewerTotalPages}
+                                                </span>
+                                                <button
+                                                    disabled={viewerPage >= viewerTotalPages - 1}
+                                                    onClick={() =>
+                                                        setViewerPage((prev) =>
+                                                            Math.min(viewerTotalPages - 1, prev + 1),
+                                                        )
+                                                    }
+                                                    className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition"
+                                                >
+                                                    Trang sau
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 3: ĐỔI MẬT KHẨU */}
                         {activeTab === 'password' && <ChangePassword />}
 
-                        {/* TAB 3: SUPPORT */}
+                        {/* TAB 4: SUPPORT */}
                         {activeTab === 'support' && <SupportReport />}
                     </div>
                 </div>
